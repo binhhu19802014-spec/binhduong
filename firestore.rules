@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function meta(ws) { return get(/databases/$(database)/documents/workspaces/$(ws)/config/meta).data; }
+    function isOwner(ws) { return signedIn() && meta(ws).ownerUid == request.auth.uid; }
+    function isAllowed(ws) {
+      return signedIn() && (isOwner(ws) || request.auth.token.email in meta(ws).allowedEmails);
+    }
+
+    match /workspaces/{ws}/config/meta {
+      allow create: if signedIn()
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.auth.token.email in request.resource.data.allowedEmails;
+      allow read: if signedIn() && (resource.data.ownerUid == request.auth.uid || request.auth.token.email in resource.data.allowedEmails);
+      allow update, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /workspaces/{ws}/state/{docId} {
+      allow read, write: if isAllowed(ws);
+    }
+  }
+}

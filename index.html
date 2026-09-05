@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QL Khảo sát & Dự toán Mương Cửa Lò - Cloud</title>
+<meta name="theme-color" content="#164e63">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="./firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+:root{--primary:#164e63;--primary2:#0f766e;--bg:#f5f7fa;--muted:#64748b;}
+body{background:var(--bg);font-family:Segoe UI,Arial,sans-serif;color:#1f2937}
+.app-header{background:linear-gradient(135deg,#0f172a,#164e63,#0f766e);color:#fff;padding:22px 0;box-shadow:0 4px 18px #0002}
+.card{border:0;border-radius:14px;box-shadow:0 4px 18px #0f172a12}
+.section-title{font-size:1rem;font-weight:800;color:var(--primary);border-left:4px solid var(--primary2);padding-left:10px;text-transform:uppercase}
+.kpi{padding:14px;border-radius:12px;background:#fff;height:100%}
+.kpi small{color:var(--muted);text-transform:uppercase;font-weight:700}
+.kpi strong{display:block;font-size:1.35rem;margin-top:5px}
+.btn-main{background:var(--primary);color:#fff;border:0} .btn-main:hover{background:#0e3f51;color:#fff}
+.table-responsive{max-height:600px} thead th{position:sticky;top:0;z-index:2;white-space:nowrap}
+.status-badge{font-size:.75rem;padding:5px 9px;border-radius:999px;font-weight:800}
+.bg-low{background:#dcfce7;color:#166534}.bg-med{background:#fef3c7;color:#92400e}.bg-high{background:#fee2e2;color:#991b1b}
+.thumb{width:62px;height:62px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid #d1d5db}
+.muted{color:var(--muted)}
+.form-label{font-weight:700;font-size:.86rem}
+.small-note{font-size:.78rem;color:var(--muted)}
+.flash-row{animation:flashRow 2.2s ease}
+@keyframes flashRow{0%,40%{background:#dcfce7}100%{background:transparent}}
+@media(max-width:768px){
+.app-header{padding:14px 0}.app-header h2{font-size:1.05rem}.container-fluid{padding-left:10px!important;padding-right:10px!important}
+.card{border-radius:12px}.card.p-4{padding:14px!important}.kpi{padding:10px}.kpi strong{font-size:1.05rem}
+.form-control,.form-select,.btn{min-height:44px;font-size:16px}.table-responsive{max-height:none;-webkit-overflow-scrolling:touch}
+thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-end}.survey-points .col-6{width:100%}
+.mobile-stack{flex-direction:column}.mobile-stack>*{width:100%}
+}
+.cloud-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#94a3b8;margin-right:5px}.cloud-dot.on{background:#22c55e}.cloud-dot.err{background:#ef4444}
+
+@media print{.no-print,.app-header .small,.account-panel{display:none!important} body{background:white} .card{box-shadow:none} .table-responsive{max-height:none;overflow:visible}}
+.auth-screen{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0f172a,#164e63,#0f766e);display:flex;align-items:center;justify-content:center;padding:20px}
+.auth-card{width:min(460px,100%);background:#fff;border-radius:18px;box-shadow:0 24px 70px #0005;padding:26px}
+.auth-logo{width:58px;height:58px;border-radius:16px;background:linear-gradient(135deg,#164e63,#0f766e);color:white;display:grid;place-items:center;font-weight:900;font-size:1.35rem;margin:0 auto 12px}
+.auth-tabs{display:flex;background:#f1f5f9;border-radius:10px;padding:4px;margin-bottom:18px}.auth-tabs button{flex:1;border:0;background:transparent;padding:9px;border-radius:8px;font-weight:700}.auth-tabs button.active{background:white;box-shadow:0 2px 8px #0001;color:#0f766e}
+.account-panel{display:flex;align-items:center;gap:10px}.account-user{background:#ffffff18;border:1px solid #ffffff2f;border-radius:10px;padding:6px 10px;color:#fff}.account-user small{display:block;opacity:.8;font-size:.68rem}.account-user strong{font-size:.88rem}
+.date-cell{font-variant-numeric:tabular-nums;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="authScreen" class="auth-screen">
+ <div class="auth-card">
+  <div class="auth-logo">QL</div>
+  <h4 class="text-center fw-bold mb-1">PHẦN MỀM KHẢO SÁT MƯƠNG</h4>
+  <p class="text-center text-muted small mb-3">Đăng nhập hoặc đăng ký tài khoản để sử dụng</p>
+  <div class="auth-tabs"><button id="tabLogin" class="active" type="button" onclick="showAuthTab('login')">Đăng nhập</button><button id="tabRegister" type="button" onclick="showAuthTab('register')">Đăng ký</button></div>
+  <div id="authMessage" class="alert d-none py-2 small"></div>
+  <form id="loginForm" onsubmit="loginAccount(event)">
+   <div class="mb-3"><label class="form-label">Tên đăng nhập</label><input id="loginUsername" class="form-control" autocomplete="username" required></div>
+   <div class="mb-3"><label class="form-label">Mật khẩu</label><input id="loginPassword" type="password" class="form-control" autocomplete="current-password" required></div>
+   <button class="btn btn-main w-100 py-2 fw-bold" type="submit">ĐĂNG NHẬP</button>
+  </form>
+  <form id="registerForm" class="d-none" onsubmit="registerAccount(event)">
+   <div class="mb-2"><label class="form-label">Họ và tên</label><input id="regFullName" class="form-control" required></div>
+   <div class="mb-2"><label class="form-label">Tên đăng nhập</label><input id="regUsername" class="form-control" minlength="3" autocomplete="username" required><div class="small-note">Ít nhất 3 ký tự, không dùng khoảng trắng.</div></div>
+   <div class="mb-2"><label class="form-label">Mật khẩu</label><input id="regPassword" type="password" class="form-control" minlength="6" autocomplete="new-password" required></div>
+   <div class="mb-3"><label class="form-label">Nhập lại mật khẩu</label><input id="regPassword2" type="password" class="form-control" minlength="6" autocomplete="new-password" required></div>
+   <button class="btn btn-success w-100 py-2 fw-bold" type="submit">ĐĂNG KÝ TÀI KHOẢN</button>
+  </form>
+  <div class="small-note mt-3 text-center">Tài khoản được lưu cục bộ trên trình duyệt của máy này. Không phải tài khoản trực tuyến nhiều thiết bị.</div>
+ </div>
+</div>
+<header class="app-header">
+ <div class="container-fluid px-4">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+   <div><h2 class="fw-bold mb-1">HỆ THỐNG QUẢN LÝ KHẢO SÁT & DỰ TOÁN MƯƠNG THOÁT NƯỚC</h2><div class="small opacity-75">Số hóa hiện trường • Khối lượng • Dự toán • Báo cáo</div></div>
+   <div class="account-panel no-print">
+    <div class="account-user"><small>Đang sử dụng</small><strong id="currentUserLabel">—</strong></div>
+    <button id="installPwaBtn" class="btn btn-sm btn-outline-light d-none" type="button">Cài ứng dụng</button><button class="btn btn-sm btn-outline-light" type="button" onclick="logoutAccount()">Đăng xuất</button>
+   </div>
+  </div>
+ </div>
+</header>
+<main class="container-fluid px-4 py-4">
+ <div class="row g-3 mb-3 no-print">
+  <div class="col-xl-2 col-md-4 col-6"><div class="kpi"><small>Tuyến đã khảo sát</small><strong id="kpiRoutes">0/42</strong></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="kpi"><small>Tổng chiều dài</small><strong id="kpiLength">0 m</strong></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="kpi"><small>Tổng bùn</small><strong id="kpiMud">0 m³</strong></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="kpi"><small>Tổng hố thu</small><strong id="kpiPits">0</strong></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="kpi"><small>Nghiêm trọng+</small><strong id="kpiSevere">0</strong></div></div>
+  <div class="col-xl-2 col-md-4 col-6"><div class="kpi"><small>Tổng dự toán</small><strong id="kpiCost">0 đ</strong></div></div>
+ </div>
+
+ <div class="card p-3 mb-3 no-print">
+  <div class="row g-2 align-items-end">
+   <div class="col-lg-2 col-md-4"><label class="form-label">Đơn giá bùn (VNĐ/m³)</label><input id="cfgMudPrice" type="number" min="0" class="form-control" value="350000"></div>
+   <div class="col-lg-2 col-md-4"><label class="form-label">Đơn giá hố thu (VNĐ/hố)</label><input id="cfgPitPrice" type="number" min="0" class="form-control" value="150000"></div>
+   <div class="col-lg-3 col-md-4"><label class="form-label">Tìm tuyến / quy cách</label><input id="searchText" class="form-control" placeholder="Nhập từ khóa..."></div>
+   <div class="col-lg-2 col-md-4"><label class="form-label">Lọc mức độ</label><select id="filterLevel" class="form-select"><option value="">Tất cả</option><option>Bình thường</option><option>Nghiêm trọng</option><option>Rất nghiêm trọng</option></select></div>
+   <div class="col-lg-3 col-md-8 d-flex gap-2 flex-wrap"><button class="btn btn-outline-secondary flex-fill" onclick="backupJSON()">Sao lưu</button><label class="btn btn-outline-secondary flex-fill mb-0">Khôi phục<input id="restoreFile" type="file" accept="application/json" hidden></label><button class="btn btn-outline-dark" onclick="window.print()">In</button><button class="btn btn-warning flex-fill" type="button" data-bs-toggle="modal" data-bs-target="#routeModal" onclick="renderRouteTable()">Quản lý tuyến</button><button class="btn btn-outline-primary flex-fill" type="button" data-bs-toggle="modal" data-bs-target="#cloudModal"><span id="cloudDot" class="cloud-dot"></span>Cloud</button></div>
+  </div>
+ </div>
+
+ <div class="row g-3">
+  <div class="col-xl-4 col-lg-5 no-print"><div class="card p-4">
+   <div class="d-flex justify-content-between"><h5 class="section-title mb-3" id="formTitle">Nhập nhật ký khảo sát</h5><button class="btn btn-sm btn-outline-secondary d-none" id="cancelEdit" type="button" onclick="resetForm()">Hủy sửa</button></div>
+   <form id="surveyForm" novalidate onsubmit="return saveRecord(event)">
+    <input type="hidden" id="editId">
+    <div class="mb-3"><label class="form-label">Tuyến đường</label><select class="form-select" id="selectRoute" required><option value="">-- Chọn tuyến --</option></select></div>
+    <div class="p-3 bg-light rounded border mb-3 small"><b>Điểm đầu mặc định:</b> <span id="routeStart">-</span><br><b>Điểm cuối mặc định:</b> <span id="routeEnd">-</span><br><b>Chiều dài thiết kế (2 bên):</b> <span id="routeLength">-</span> m</div>
+    <div class="row g-2 survey-points"><div class="col-6"><label class="form-label">Điểm đầu khảo sát</label><input type="text" class="form-control" id="surveyStart" placeholder="Tự điền theo tuyến, có thể sửa"></div><div class="col-6"><label class="form-label">Điểm cuối khảo sát</label><input type="text" class="form-control" id="surveyEnd" placeholder="Tự điền theo tuyến, có thể sửa"></div></div>
+    <div class="small-note mt-1">Điểm đầu/điểm cuối tự lấy từ danh mục tuyến nhưng có thể điều chỉnh theo phạm vi khảo sát thực tế.</div>
+    <div class="row g-2"><div class="col-12"><label class="form-label">Ngày khảo sát</label><input type="date" class="form-control" id="surveyDate" required></div></div>
+    <div class="mt-2 p-2 border rounded bg-light"><div class="fw-bold text-primary mb-2">PHẢI TUYẾN</div><div class="row g-2"><div class="col-6"><label class="form-label">Chiều dài phải tuyến (m)</label><input type="number" step="0.01" min="0" class="form-control" id="rightLength" value="0"></div><div class="col-6"><label class="form-label">Số hố thu phải tuyến</label><input type="number" step="1" min="0" class="form-control" id="rightPits" value="0"></div></div></div>
+    <div class="mt-2 p-2 border rounded bg-light"><div class="fw-bold text-primary mb-2">TRÁI TUYẾN</div><div class="row g-2"><div class="col-6"><label class="form-label">Chiều dài trái tuyến (m)</label><input type="number" step="0.01" min="0" class="form-control" id="leftLength" value="0"></div><div class="col-6"><label class="form-label">Số hố thu trái tuyến</label><input type="number" step="1" min="0" class="form-control" id="leftPits" value="0"></div></div></div>
+    <div class="small-note mt-1">Tổng chiều dài và tổng số hố thu được tự động cộng từ hai bên tuyến để tính khối lượng và dự toán.</div>
+    <div class="mt-2"><label class="form-label">Quy cách mương hiện trạng</label><div class="input-group"><input class="form-control" id="spec" list="specOptions" placeholder="Chọn gợi ý hoặc nhập theo thực tế"><button class="btn btn-outline-secondary" type="button" onclick="applyRouteDefaultSpec()">Lấy mặc định</button></div><datalist id="specOptions"><option value="Mương BTCT đúc sẵn, có tấm đan"><option value="Mương BTCT đổ tại chỗ, có tấm đan"><option value="Mương xây gạch, có tấm đan BTCT"><option value="Mương hở BTCT"><option value="Rãnh xây có nắp đan"><option value="Cống tròn BTCT"><option value="Cống hộp BTCT"></datalist><div class="small-note mt-1">Tự điền theo quy cách mặc định của tuyến hoặc số liệu đã khảo sát; vẫn có thể sửa tự do.</div></div>
+    <div class="row g-2 mt-1"><div class="col-6"><label class="form-label">Chiều rộng mương (m)</label><input type="number" step="0.01" min="0.01" class="form-control" id="width" value="0.5" required></div><div class="col-6"><label class="form-label">Bùn lắng dày (m)</label><input type="number" step="0.01" min="0" class="form-control" id="mudDepth" value="0"></div></div>
+    <div class="row g-2 mt-1"><div class="col-12"><label class="form-label">Mức độ</label><select class="form-select" id="level"><option>Bình thường</option><option>Nghiêm trọng</option><option>Rất nghiêm trọng</option></select></div></div>
+    <div class="mt-2"><label class="form-label">Ghi chú hiện trường</label><textarea class="form-control" id="notes" rows="2" placeholder="Vị trí tắc, hư hỏng, kiến nghị..."></textarea></div>
+    <div class="mt-2"><label class="form-label">Ảnh hiện trạng</label><input type="file" class="form-control" id="photo" accept="image/*" capture="environment"><div id="photoPreviewWrap" class="mt-2 d-none"><img id="photoPreview" class="thumb" alt="Ảnh xem trước"></div><div class="small-note mt-1">Ảnh được nén trước khi lưu để hạn chế đầy bộ nhớ trình duyệt.</div></div>
+    <button class="btn btn-main w-100 mt-3 py-2 fw-bold" type="submit">LƯU / CẬP NHẬT KHẢO SÁT</button><div id="saveStatus" class="alert alert-light border mt-2 mb-0 py-2 small text-center">Chưa có thao tác lưu.</div>
+   </form>
+  </div></div>
+
+  <div class="col-xl-8 col-lg-7"><div class="card p-3 p-md-4">
+   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><h5 class="section-title mb-0">Dữ liệu khảo sát</h5><div class="no-print d-flex gap-2"><button class="btn btn-success btn-sm fw-bold" onclick="exportExcel()">Xuất Excel</button><button class="btn btn-outline-danger btn-sm" onclick="clearAll()">Xóa toàn bộ</button></div></div>
+   <div class="table-responsive"><table class="table table-bordered table-hover align-middle small mb-0"><thead class="table-light"><tr><th>STT</th><th>Tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Ngày</th><th>Ảnh</th><th>Thông số</th><th>Chiều dài phải (m)</th><th>Hố thu phải</th><th>Chiều dài trái (m)</th><th>Hố thu trái</th><th>Mức độ</th><th>Bùn (m³)</th><th>Tổng hố thu</th><th>Dự toán</th><th class="no-print">Thao tác</th></tr></thead><tbody id="tableBody"></tbody></table></div>
+  </div></div>
+ </div>
+</main>
+<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">Thêm, sửa, cập nhật hoặc xóa tuyến. Dữ liệu được lưu tự động trên trình duyệt.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<div class="card border p-3 mb-3 shadow-none"><input type="hidden" id="routeEditId"><div class="row g-2"><div class="col-md-2"><label class="form-label">Mã/STT tuyến</label><input id="routeIdInput" type="number" min="1" class="form-control" placeholder="Tự tăng nếu bỏ trống"></div><div class="col-md-4"><label class="form-label">Tên tuyến đường</label><input id="routeNameInput" class="form-control" placeholder="VD: NGUYỄN HUỆ"></div><div class="col-md-3"><label class="form-label">Điểm đầu</label><input id="routeStartInput" class="form-control"></div><div class="col-md-3"><label class="form-label">Điểm cuối</label><input id="routeEndInput" class="form-control"></div><div class="col-md-2"><label class="form-label">Chiều dài (m)</label><input id="routeLengthInput" type="number" min="0" step="0.01" class="form-control"></div><div class="col-md-4"><label class="form-label">Ghi chú tuyến</label><input id="routeNoteInput" class="form-control" placeholder="Khu vực, loại tuyến..."></div><div class="col-md-4"><label class="form-label">Quy cách mương mặc định</label><input id="routeSpecInput" class="form-control" list="specOptions" placeholder="VD: Mương BTCT đúc sẵn, có tấm đan"></div><div class="col-md-8 d-flex align-items-end gap-2"><button class="btn btn-main" type="button" onclick="saveRoute()">Lưu / cập nhật tuyến</button><button class="btn btn-outline-secondary" type="button" onclick="resetRouteForm()">Nhập tuyến mới</button><button class="btn btn-outline-success" type="button" onclick="exportRoutesExcel()">Xuất danh mục</button><label class="btn btn-outline-primary mb-0">Nhập Excel<input id="routeImportFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="importRoutesExcel(event)"></label></div></div></div>
+<div class="row g-2 mb-2"><div class="col-md-6"><input id="routeSearch" class="form-control" placeholder="Tìm tên tuyến, điểm đầu, điểm cuối..." oninput="renderRouteTable()"></div><div class="col-md-6 text-md-end small text-muted align-self-center">Tổng số tuyến: <b id="routeCount">0</b></div></div>
+<div class="table-responsive" style="max-height:430px"><table class="table table-bordered table-hover align-middle small"><thead class="table-light"><tr><th>STT</th><th>Mã</th><th>Tên tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Chiều dài (m)</th><th>Ghi chú</th><th>Quy cách mặc định</th><th>Thao tác</th></tr></thead><tbody id="routeTableBody"></tbody></table></div>
+</div></div></div></div>
+<div class="modal fade" id="imgModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Ảnh hiện trạng</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body text-center"><img id="modalImage" class="img-fluid rounded"></div></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<div class="modal fade" id="cloudModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+<div class="modal-header"><div><h5 class="modal-title">Đồng bộ Cloud & chia sẻ nhiều thiết bị</h5><div class="small text-muted">Dùng Firebase để đồng bộ PC, iPhone, Samsung. Chỉ người được cấp quyền mới truy cập workspace.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-body">
+ <div id="cloudAlert" class="alert alert-info py-2 small">Chưa kết nối Cloud. Phần mềm vẫn dùng dữ liệu cục bộ bình thường.</div>
+ <div class="row g-2"><div class="col-md-6"><label class="form-label">Mã Workspace</label><input id="cloudWorkspace" class="form-control" placeholder="VD: CUALO-2026"></div><div class="col-md-6"><label class="form-label">Email tài khoản Cloud</label><input id="cloudEmail" type="email" class="form-control" placeholder="email@donvi.vn"></div><div class="col-md-6"><label class="form-label">Mật khẩu Cloud</label><input id="cloudPassword" type="password" class="form-control" minlength="6"></div><div class="col-md-6 d-flex align-items-end gap-2 mobile-stack"><button class="btn btn-success flex-fill" type="button" onclick="cloudRegister()">Đăng ký Cloud</button><button class="btn btn-primary flex-fill" type="button" onclick="cloudConnect()">Kết nối</button><button class="btn btn-outline-danger" type="button" onclick="cloudDisconnect()">Ngắt</button></div></div>
+ <hr><div class="row g-2"><div class="col-12"><label class="form-label">Firebase Config (JSON)</label><textarea id="firebaseConfigInput" class="form-control" rows="5" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea><div class="small-note mt-1">Nếu website đã được triển khai chính thức, cấu hình Firebase được dùng chung và ô này sẽ bị khóa. Chế độ nhập tay chỉ dùng khi chạy file HTML cục bộ.</div></div><div class="col-12"><button class="btn btn-outline-secondary" type="button" onclick="saveFirebaseConfig()">Lưu cấu hình Firebase</button></div></div>
+ <hr><div id="permissionPanel" class="d-none"><h6 class="fw-bold">Cấp quyền người dùng</h6><div class="input-group"><input id="allowEmail" type="email" class="form-control" placeholder="Email được phép sử dụng"><button class="btn btn-warning" onclick="grantCloudAccess()">Cấp quyền</button></div><div class="small-note mt-2">Chỉ chủ Workspace mới cấp quyền. Người được cấp quyền đăng ký/đăng nhập Cloud bằng đúng email này.</div><div id="allowedList" class="mt-2 small"></div></div>
+ <hr><details><summary class="fw-bold">Thiết lập lần đầu để chia sẻ an toàn</summary><div class="small mt-2"><ol><li>Tạo Firebase Project và bật <b>Authentication → Email/Password</b>, <b>Cloud Firestore</b>.</li><li>Tạo Web app, dán Firebase Config ở trên.</li><li>Đăng ký tài khoản Cloud bằng email của người quản trị, nhập Mã Workspace rồi Kết nối. Workspace mới sẽ lấy tài khoản đầu tiên làm chủ.</li><li>Chủ Workspace nhập email cán bộ tại mục Cấp quyền. Mỗi người dùng đăng ký Cloud trên thiết bị của họ bằng đúng email đã cấp.</li><li>Đưa file HTML lên HTTPS hosting (Firebase Hosting hoặc máy chủ đơn vị) để iPhone/Samsung mở bằng Safari/Chrome; có thể “Add to Home Screen”.</li></ol><div class="alert alert-warning py-2">Để quyền truy cập thực sự an toàn, cần cấu hình Firestore Security Rules theo mô hình owner/member. Bản HTML không thể tự tạo quy tắc bảo mật cho dự án Firebase.</div></div></details>
+</div></div></div></div>
+
+<script>
+const defaultRoutes = [
+        {id: 1, name: "LÊ THỊ BẠCH CÁT", dau: "Nút giao đường chưa ghi tên, khu vực phía tây", cuoi: "Giao Phạm Huy", tong: 1300},
+        {id: 2, name: "NGUYỄN THÂN MẾM", dau: "Giao Lê Thị Bạch Cát", cuoi: "Giao Nguyễn Xí", tong: 2400},
+        {id: 3, name: "YÊN LƯƠNG", dau: "Nút giao đường chưa ghi tên gần kênh phía tây", cuoi: "Giao Phạm Huy", tong: 1440},
+        {id: 4, name: "CAO HUY TUẤN", dau: "Giao đường chưa ghi tên ở đầu tây nam", cuoi: "Giao Bình Minh", tong: 1400},
+        {id: 5, name: "NGUYỄN XÍ", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1310},
+        {id: 6, name: "MAI BẢNG", dau: "Giao Lan Châu", cuoi: "Giao Bình Minh", tong: 860},
+        {id: 7, name: "PHẠM HUY", dau: "Giao Lê Thị Bạch Cát", cuoi: "Giao Cửa Xá", tong: 4800},
+        {id: 8, name: "LAN CHÂU", dau: "Giao Nguyễn Huệ", cuoi: "Giao Nguyễn Xí", tong: 880},
+        {id: 9, name: "HOÀNG TÁ THỐN", dau: "Nút Phạm Huy / Nguyễn Sư Hồi", cuoi: "Giao Bình Minh", tong: 330},
+        {id: 10, name: "CỬA XÁ", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1310},
+        {id: 11, name: "NGUYỄN CẢNH QUẾ", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1290},
+        {id: 12, name: "THÁI BÁ DU", dau: "Giao Nguyễn Cảnh Quế", cuoi: "Giao đường ngang chưa ghi tên", tong: 684},
+        {id: 13, name: "LÝ QUỐC SƯ", dau: "Giao Cửa Xá", cuoi: "Giao Năng Tịnh", tong: 1220},
+        {id: 14, name: "BÌNH MINH", dau: "Giao Cao Huy Tuấn", cuoi: "Giao Nguyễn Sinh Cung", tong: 8460},
+        {id: 15, name: "ĐỘI CẤN", dau: "Giao Cửa Xá", cuoi: "Giao Năng Tịnh", tong: 890},
+        {id: 16, name: "TRẦN CAO VÂN", dau: "Giao Cửa Xá", cuoi: "Giao Năng Tịnh", tong: 900},
+        {id: 17, name: "NĂNG TỊNH", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1310},
+        {id: 18, name: "NGUYỄN SƯ HỒI", dau: "Nút Phạm Huy / Hoàng Tá Thốn", cuoi: "Giao Hoàng Văn Tâm", tong: 4470},
+        {id: 19, name: "SÀO NAM", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1300},
+        {id: 20, name: "LÊ THAI TÔNG", dau: "Giao Cửa Xá", cuoi: "Giao Nguyễn Thức Đường", tong: 3160},
+        {id: 21, name: "LÊ LƯỠNG BẠT", dau: "Giao Nguyễn Huệ", cuoi: "Giao Mai Thuc Loan", tong: 740},
+        {id: 22, name: "MAI THUC LOAN", dau: "Giao Cửa Xá", cuoi: "Giao Yết Kiêu", tong: 2780},
+        {id: 23, name: "DƯƠNG THANH", dau: "Giao Nguyễn Huệ", cuoi: "Giao Mai Thuc Loan", tong: 760},
+        {id: 24, name: "NGUYỄN THỨC TỰ", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1330},
+        {id: 25, name: "ĐINH HỒNG PHIÊN", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1330},
+        {id: 26, name: "NGUYỄN HUỆ", dau: "Giao Nguyễn Xí", cuoi: "Giao Yết Kiêu", tong: 8248},
+        {id: 27, name: "TRẦN VĂN CUNG", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1320},
+        {id: 28, name: "NGUYỄN DUY TRINH", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1290},
+        {id: 29, name: "NGUYỄN THỨC ĐƯỜNG", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1280},
+        {id: 30, name: "NGUYỆN THIỆN CHƯƠNG", dau: "Giao Nguyễn Thức Tự", cuoi: "Giao Nguyễn Đức Công", tong: 1300},
+        {id: 31, name: "NGUYỄN ĐỨC CÔNG", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1280},
+        {id: 32, name: "HOÀNG VĂN TÂM", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1280},
+        {id: 33, name: "NGUYỄN SINH CUNG", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1270},
+        {id: 34, name: "LƯU QUANG VŨ", dau: "Giao Mai Thuc Loan", cuoi: "Giao Bình Minh", tong: 630},
+        {id: 35, name: "ĐẶNG THÁI THUYẾN", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1280},
+        {id: 36, name: "TÂY SƠN", dau: "Giao Mai Thuc Loan", cuoi: "Giao Bình Minh", tong: 620},
+        {id: 37, name: "HOÀI THÀNH", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1270},
+        {id: 38, name: "HOÀNG KHÁNH", dau: "Giao Mai Thuc Loan", cuoi: "Giao Bình Minh", tong: 616},
+        {id: 39, name: "DẠ TƯƠNG", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1250},
+        {id: 40, name: "TRỊNH CÔNG SƠN", dau: "Giao Mai Thuc Loan", cuoi: "Giao Bình Minh", tong: 610},
+        {id: 41, name: "NGUYỄN CÔNG CHÍNH", dau: "Giao Nguyễn Huệ", cuoi: "Giao Bình Minh", tong: 1280},
+        {id: 42, name: "YẾT KIÊU", dau: "Giao trục dọc chưa ghi nhãn phía tây", cuoi: "Giao Bình Minh", tong: 2166}
+];
+const ROUTES_STORE="SURVEY_ROUTES_STORE_V3";
+let routes=[];
+const STORE='CUALO_DRAINAGE_SURVEY_V4', SETTINGS='CUL0_DRAINAGE_SETTINGS_V2';
+const LEGACY_STORES=['CUL0_DRAINAGE_SURVEY_V2','SURVEY_DATA_STORE','CUALO_DRAINAGE_SURVEY_V3'];
+let data=[]; let currentImage=''; let lastSavedRouteId=null;
+const ACCOUNTS_STORE='CUALO_LOCAL_ACCOUNTS_V1', SESSION_STORE='CUALO_LOCAL_SESSION_V1';
+let currentUser=null;
+const CLOUD_CFG_STORE='CUALO_FIREBASE_CONFIG_V1', CLOUD_WS_STORE='CUALO_CLOUD_WORKSPACE_V1';
+let cloudDb=null,cloudAuth=null,cloudUser=null,cloudWorkspace='',cloudUnsub=null,cloudApplying=false,cloudPushTimer=null,cloudMeta=null;
+const $=id=>document.getElementById(id);
+const money=n=>(Number(n)||0).toLocaleString('vi-VN')+' đ';
+function safeParse(s,fallback){try{return JSON.parse(s)}catch{return fallback}}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function today(){return new Date().toISOString().slice(0,10)}
+function formatDateVN(value){
+ if(!value) return '';
+ const s=String(value).trim();
+ let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return `${m[3]}/${m[2]}/${m[1]}`;
+ m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/); if(m) return `${String(m[1]).padStart(2,'0')}/${String(m[2]).padStart(2,'0')}/${m[3]}`;
+ return s;
+}
+function getAccounts(){const x=safeParse(localStorage.getItem(ACCOUNTS_STORE),[]);return Array.isArray(x)?x:[]}
+function saveAccounts(arr){localStorage.setItem(ACCOUNTS_STORE,JSON.stringify(arr))}
+async function hashPassword(text){
+ try{const b=new TextEncoder().encode(text);const h=await crypto.subtle.digest('SHA-256',b);return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join('')}catch{return btoa(unescape(encodeURIComponent(text)))}
+}
+function showAuthMessage(msg,type='danger'){const el=$('authMessage');el.className=`alert alert-${type} py-2 small`;el.textContent=msg;el.classList.remove('d-none')}
+function showAuthTab(which){const login=which==='login';$('loginForm').classList.toggle('d-none',!login);$('registerForm').classList.toggle('d-none',login);$('tabLogin').classList.toggle('active',login);$('tabRegister').classList.toggle('active',!login);$('authMessage').classList.add('d-none')}
+async function registerAccount(e){e.preventDefault();const fullName=$('regFullName').value.trim();const username=$('regUsername').value.trim().toLowerCase();const p1=$('regPassword').value,p2=$('regPassword2').value;if(!/^[a-zA-Z0-9._-]{3,30}$/.test(username))return showAuthMessage('Tên đăng nhập chỉ dùng chữ, số, dấu chấm, gạch dưới hoặc gạch ngang; từ 3–30 ký tự.');if(p1.length<6)return showAuthMessage('Mật khẩu phải có ít nhất 6 ký tự.');if(p1!==p2)return showAuthMessage('Hai lần nhập mật khẩu chưa khớp.');const arr=getAccounts();if(arr.some(a=>a.username===username))return showAuthMessage('Tên đăng nhập này đã tồn tại.');const passwordHash=await hashPassword(p1);arr.push({id:Date.now(),fullName,username,passwordHash,createdAt:new Date().toISOString(),role:arr.length?'Người dùng':'Quản trị'});saveAccounts(arr);$('loginUsername').value=username;$('loginPassword').value='';showAuthTab('login');showAuthMessage('Đăng ký thành công. Vui lòng đăng nhập.','success')}
+async function loginAccount(e){e.preventDefault();const username=$('loginUsername').value.trim().toLowerCase(),password=$('loginPassword').value;const acc=getAccounts().find(a=>a.username===username);if(!acc)return showAuthMessage('Tên đăng nhập hoặc mật khẩu không đúng.');const h=await hashPassword(password);if(h!==acc.passwordHash)return showAuthMessage('Tên đăng nhập hoặc mật khẩu không đúng.');currentUser={id:acc.id,fullName:acc.fullName,username:acc.username,role:acc.role};sessionStorage.setItem(SESSION_STORE,JSON.stringify(currentUser));enterApp()}
+function enterApp(){if(!currentUser)return;$('authScreen').style.display='none';$('currentUserLabel').textContent=`${currentUser.fullName} (${currentUser.role})`;if(!window.__appInitialized){window.__appInitialized=true;initApp();}}
+function logoutAccount(){sessionStorage.removeItem(SESSION_STORE);currentUser=null;$('authScreen').style.display='flex';$('loginPassword').value='';showAuthTab('login')}
+function initAuth(){const ss=safeParse(sessionStorage.getItem(SESSION_STORE),null);if(ss&&ss.username){currentUser=ss;enterApp();return;}const accs=getAccounts();showAuthTab(accs.length?'login':'register');$('authScreen').style.display='flex';}
+
+function setSaveStatus(msg,type='light'){
+ const el=$('saveStatus'); if(!el) return;
+ el.className=`alert alert-${type} border mt-2 mb-0 py-2 small text-center`;
+ el.textContent=msg;
+}
+function normalizeSurveyRow(x){
+ if(!x||typeof x!=='object') return null;
+ const rid=Number(x.idTuyen ?? x['idTuyen'] ?? x['Mã tuyến'] ?? x['ID tuyến']);
+ if(!Number.isFinite(rid)) return null;
+ return {
+   idTuyen:rid,
+   ten:x.ten ?? x['Tên đường'] ?? x['Tên tuyến đường'] ?? '',
+   diemDau:x.diemDau ?? x['Điểm đầu'] ?? '', diemCuoi:x.diemCuoi ?? x['Điểm cuối'] ?? '',
+   ngay:x.ngay ?? x['Ngày khảo sát'] ?? today(),
+   chieuDai:Number(x.chieuDai ?? x['Chiều dài xử lý (m)'] ?? x['Chiều dài'] ?? 0)||0,
+   chieuDaiPhai:Number(x.chieuDaiPhai ?? x['Chiều dài phải tuyến (m)'] ?? x['Chiều dài phải'] ?? x.chieuDai ?? x['Chiều dài xử lý (m)'] ?? 0)||0,
+   chieuDaiTrai:Number(x.chieuDaiTrai ?? x['Chiều dài trái tuyến (m)'] ?? x['Chiều dài trái'] ?? 0)||0,
+   quyCach:x.quyCach ?? x['Quy cách'] ?? x['Quy cách cấu trúc mương'] ?? '',
+   rong:Number(x.rong ?? x['Chiều rộng mương'] ?? x['Chiều rộng mương (m)'] ?? 0.5)||0.5,
+   dayBun:Number(x.dayBun ?? x['Độ dày bùn'] ?? x['Chiều dày bùn lắng thực tế (m)'] ?? 0)||0,
+   hoThu:Number(x.hoThu ?? x['Số hố thu'] ?? x['Số lượng hố thu cần vệ sinh (hố)'] ?? 0)||0,
+   hoThuPhai:Number(x.hoThuPhai ?? x['Số hố thu phải tuyến'] ?? x['Hố thu phải'] ?? x.hoThu ?? x['Số hố thu'] ?? 0)||0,
+   hoThuTrai:Number(x.hoThuTrai ?? x['Số hố thu trái tuyến'] ?? x['Hố thu trái'] ?? 0)||0,
+   mucDo:x.mucDo ?? x['Mức độ'] ?? x['Mức độ tắc nghẽn'] ?? 'Bình thường',
+   ghiChu:x.ghiChu ?? x['Ghi chú'] ?? '', hinhAnh:(x.hinhAnh ?? x['Hình ảnh'] ?? '')==='Không có ảnh'?'':(x.hinhAnh ?? x['Hình ảnh'] ?? ''),
+   updatedAt:x.updatedAt ?? new Date().toISOString(),
+   updatedBy:x.updatedBy ?? x['Người cập nhật'] ?? '',
+   khoiLuongBun:Number(x.khoiLuongBun ?? x['Khối lượng bùn (m3)'] ?? x['Khối lượng bùn (m³)'] ?? 0)||0,
+   thanhTien:Number(x.thanhTien ?? x['Thành tiền (VNĐ)'] ?? x['Dự toán (VNĐ)'] ?? 0)||0
+ };
+}
+function loadSurveyData(){
+ let arr=safeParse(localStorage.getItem(STORE),null);
+ if(!Array.isArray(arr)){
+   for(const k of LEGACY_STORES){ const old=safeParse(localStorage.getItem(k),null); if(Array.isArray(old)&&old.length){arr=old;break;} }
+ }
+ if(!Array.isArray(arr)) arr=[];
+ arr=arr.map(normalizeSurveyRow).filter(Boolean);
+ arr.forEach(x=>{
+   // Dữ liệu cũ chưa tách trái/phải: giữ nguyên tổng cũ ở phía phải để không mất số liệu.
+   if(!Number.isFinite(Number(x.chieuDaiPhai))) x.chieuDaiPhai=Number(x.chieuDai)||0;
+   if(!Number.isFinite(Number(x.chieuDaiTrai))) x.chieuDaiTrai=0;
+   if(!Number.isFinite(Number(x.hoThuPhai))) x.hoThuPhai=Number(x.hoThu)||0;
+   if(!Number.isFinite(Number(x.hoThuTrai))) x.hoThuTrai=0;
+   x.chieuDai=(Number(x.chieuDaiPhai)||0)+(Number(x.chieuDaiTrai)||0);
+   x.hoThu=(Number(x.hoThuPhai)||0)+(Number(x.hoThuTrai)||0);
+ });
+ try{localStorage.setItem(STORE,JSON.stringify(arr));}catch(e){}
+ return arr;
+}
+function persist(){
+ try{
+   const payload=JSON.stringify(data);
+   localStorage.setItem(STORE,payload);
+   const check=localStorage.getItem(STORE);
+   if(check!==payload) throw new Error('Dữ liệu ghi không khớp');
+   scheduleCloudPush();
+   return true;
+ }catch(e){
+   setSaveStatus('Không thể lưu dữ liệu trên trình duyệt: '+(e?.message||e),'danger');
+   alert('Không thể lưu dữ liệu. Hãy thử mở file bằng Chrome/Edge, hoặc Sao lưu và giảm số lượng ảnh.');
+   return false;
+ }
+}
+function initApp(){
+ data=loadSurveyData();
+ routes=safeParse(localStorage.getItem(ROUTES_STORE),null); if(!Array.isArray(routes)||!routes.length){routes=defaultRoutes.map(r=>({...r,note:''}));persistRoutes();}
+ normalizeRoutes(); refreshRouteSelect();
+ const st=safeParse(localStorage.getItem(SETTINGS),{}); if(st.mudPrice)$('cfgMudPrice').value=st.mudPrice;if(st.pitPrice)$('cfgPitPrice').value=st.pitPrice;$('surveyDate').value=today(); bind(); render(); renderRouteTable();
+}
+function bind(){
+ $('selectRoute').addEventListener('change',loadRoute);
+ $('cfgMudPrice').addEventListener('change',recalcAll); $('cfgPitPrice').addEventListener('change',recalcAll);
+ $('searchText').addEventListener('input',render); $('filterLevel').addEventListener('change',render);
+ $('photo').addEventListener('change',async e=>{const f=e.target.files[0];if(f){currentImage=await compressImage(f,1200,.72);$('photoPreview').src=currentImage;$('photoPreviewWrap').classList.remove('d-none')}});
+ $('restoreFile').addEventListener('change',restoreJSON);
+}
+function loadRoute(){
+ const r=routes.find(x=>String(x.id)==String($('selectRoute').value));
+ if(!r){$('routeStart').textContent=$('routeEnd').textContent=$('routeLength').textContent='-'; if(!$('editId').value){$('spec').value='';} return;}
+ $('routeStart').textContent=r.dau;$('routeEnd').textContent=r.cuoi;$('routeLength').textContent=r.tong;
+ const existing=data.find(x=>String(x.idTuyen)===String(r.id));
+ if(existing){
+   $('editId').value=String(r.id);$('surveyDate').value=existing.ngay||today();$('surveyStart').value=existing.diemDau||r.dau||'';$('surveyEnd').value=existing.diemCuoi||r.cuoi||'';$('rightLength').value=existing.chieuDaiPhai??existing.chieuDai??r.tong;$('leftLength').value=existing.chieuDaiTrai??0;$('spec').value=existing.quyCach||r.defaultSpec||'';$('width').value=existing.rong??0.5;$('mudDepth').value=existing.dayBun??'';$('rightPits').value=existing.hoThuPhai??existing.hoThu??0;$('leftPits').value=existing.hoThuTrai??0;$('level').value=existing.mucDo||'Bình thường';$('notes').value=existing.ghiChu||'';currentImage=existing.hinhAnh||'';
+   if(currentImage){$('photoPreview').src=currentImage;$('photoPreviewWrap').classList.remove('d-none')}else{$('photoPreviewWrap').classList.add('d-none')}
+   $('formTitle').textContent='Cập nhật khảo sát - '+r.name;$('cancelEdit').classList.remove('d-none');
+ }else if(!$('editId').value){
+   $('surveyStart').value=r.dau||'';$('surveyEnd').value=r.cuoi||'';$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('spec').value=r.defaultSpec||'';$('surveyDate').value=today();$('width').value=.5;$('mudDepth').value='';$('rightPits').value=0;$('leftPits').value=0;$('level').value='Bình thường';$('notes').value='';currentImage='';$('photoPreviewWrap').classList.add('d-none');$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');
+ }
+}
+function applyRouteDefaultSpec(){const r=routes.find(x=>String(x.id)===String($('selectRoute').value));if(!r)return alert('Vui lòng chọn tuyến đường trước.');$('spec').value=r.defaultSpec||'';if(!r.defaultSpec)alert('Tuyến này chưa có quy cách mặc định. Bạn có thể nhập trực tiếp hoặc vào Quản lý tuyến để thiết lập.');}
+
+
+function normalizeRoutes(){routes=routes.map((r,i)=>({id:Number(r.id)||i+1,name:String(r.name||'').trim(),dau:String(r.dau||'').trim(),cuoi:String(r.cuoi||'').trim(),tong:Number(r.tong)||0,note:String(r.note||'').trim(),defaultSpec:String(r.defaultSpec||r.quyCach||'').trim()})).filter(r=>r.name).sort((a,b)=>a.id-b.id);}
+function persistRoutes(){try{localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));scheduleCloudPush()}catch(e){alert('Không thể lưu danh mục tuyến đường.')}}
+function refreshRouteSelect(selected){const sel=$('selectRoute');const cur=selected??sel.value;sel.innerHTML='<option value="">-- Chọn tuyến --</option>';routes.slice().sort((a,b)=>a.id-b.id).forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=`${r.id}. ${r.name} (${Number(r.tong).toLocaleString('vi-VN')} m)`;sel.appendChild(o)});if(cur&&routes.some(r=>String(r.id)===String(cur)))sel.value=cur;loadRoute();}
+function nextRouteId(){return routes.length?Math.max(...routes.map(r=>Number(r.id)||0))+1:1;}
+function saveRoute(){const editId=Number($('routeEditId').value)||null;const id=Number($('routeIdInput').value)||nextRouteId();const name=$('routeNameInput').value.trim().toUpperCase();const dau=$('routeStartInput').value.trim();const cuoi=$('routeEndInput').value.trim();const tong=Number($('routeLengthInput').value);const note=$('routeNoteInput').value.trim();const defaultSpec=$('routeSpecInput').value.trim();if(!name)return alert('Vui lòng nhập tên tuyến đường.');if(!Number.isFinite(tong)||tong<0)return alert('Chiều dài tuyến không hợp lệ.');const duplicate=routes.find(r=>r.id===id&&r.id!==editId);if(duplicate)return alert('Mã tuyến đã tồn tại. Vui lòng chọn mã khác.');if(editId!==null){const idx=routes.findIndex(r=>r.id===editId);if(idx<0)return;const old=routes[idx];routes[idx]={id,name,dau,cuoi,tong,note,defaultSpec};data.forEach(x=>{if(String(x.idTuyen)===String(old.id)){x.idTuyen=id;x.ten=name;x.diemDau=dau;x.diemCuoi=cuoi;}});persist();}else{routes.push({id,name,dau,cuoi,tong,note,defaultSpec});}normalizeRoutes();persistRoutes();refreshRouteSelect(id);resetRouteForm();renderRouteTable();render();}
+function editRoute(id){const r=routes.find(x=>x.id===id);if(!r)return;$('routeEditId').value=r.id;$('routeIdInput').value=r.id;$('routeNameInput').value=r.name;$('routeStartInput').value=r.dau;$('routeEndInput').value=r.cuoi;$('routeLengthInput').value=r.tong;$('routeNoteInput').value=r.note||'';$('routeSpecInput').value=r.defaultSpec||'';}
+function resetRouteForm(){$('routeEditId').value='';$('routeIdInput').value='';$('routeNameInput').value='';$('routeStartInput').value='';$('routeEndInput').value='';$('routeLengthInput').value='';$('routeNoteInput').value='';$('routeSpecInput').value='';}
+function deleteRoute(id){const linked=data.filter(x=>String(x.idTuyen)===String(id)).length;const msg=linked?`Tuyến này đang có ${linked} bản ghi khảo sát. Xóa tuyến sẽ KHÔNG xóa bản ghi khảo sát cũ nhưng tuyến sẽ không còn trong danh mục. Tiếp tục?`:'Xóa tuyến này khỏi danh mục?';if(!confirm(msg))return;routes=routes.filter(r=>r.id!==id);persistRoutes();refreshRouteSelect();renderRouteTable();render();}
+function renderRouteTable(){const q=($('routeSearch')?.value||'').toLowerCase().trim();const rows=routes.filter(r=>!q||[r.name,r.dau,r.cuoi,r.note].join(' ').toLowerCase().includes(q)).sort((a,b)=>a.id-b.id);if($('routeCount'))$('routeCount').textContent=routes.length;const tb=$('routeTableBody');if(!tb)return;tb.innerHTML=rows.length?rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.id}</td><td class="fw-bold">${escapeHtml(r.name)}</td><td>${escapeHtml(r.dau)}</td><td>${escapeHtml(r.cuoi)}</td><td>${Number(r.tong).toLocaleString('vi-VN')}</td><td>${escapeHtml(r.note||'')}</td><td>${escapeHtml(r.defaultSpec||'')}</td><td class="text-nowrap"><button class="btn btn-outline-primary btn-sm" onclick="editRoute(${r.id})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRoute(${r.id})">Xóa</button></td></tr>`).join(''):'<tr><td colspan="9" class="text-center text-muted py-3">Không có tuyến phù hợp.</td></tr>';}
+function importRoutesExcel(e){const f=e.target.files[0];if(!f)return;if(typeof XLSX==='undefined'){alert('Không tải được thư viện Excel.');e.target.value='';return;}const rd=new FileReader();rd.onload=()=>{try{const wb=XLSX.read(rd.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const arr=XLSX.utils.sheet_to_json(ws,{defval:''});if(!arr.length)throw new Error('File không có dữ liệu');const pick=(o,names)=>{for(const n of names){if(Object.prototype.hasOwnProperty.call(o,n))return o[n];const k=Object.keys(o).find(k=>String(k).trim().toLowerCase()===n.toLowerCase());if(k)return o[k]}return ''};const imported=arr.map((o,i)=>({id:Number(pick(o,['Mã tuyến','Ma tuyen','ID','STT']))||nextRouteId()+i,name:String(pick(o,['Tên tuyến','Tên tuyến đường','Ten tuyen','Tên đường'])||'').trim().toUpperCase(),dau:String(pick(o,['Điểm đầu','Diem dau'])||'').trim(),cuoi:String(pick(o,['Điểm cuối','Diem cuoi'])||'').trim(),tong:Number(pick(o,['Chiều dài (m)','Chiều dài','Chieu dai','Tổng chiều dài']))||0,note:String(pick(o,['Ghi chú','Ghi chu'])||'').trim(),defaultSpec:String(pick(o,['Quy cách mương mặc định','Quy cách','Quy cach'])||'').trim()})).filter(r=>r.name);if(!imported.length)throw new Error('Không nhận diện được cột Tên tuyến');let added=0,updated=0;for(const r of imported){const idx=routes.findIndex(x=>x.id===r.id||x.name.toUpperCase()===r.name.toUpperCase());if(idx>=0){const old=routes[idx];routes[idx]={...old,...r,id:old.id};data.forEach(x=>{if(String(x.idTuyen)===String(old.id)){x.ten=r.name;x.diemDau=r.dau;x.diemCuoi=r.cuoi;}});updated++;}else{r.id=routes.some(x=>x.id===r.id)?nextRouteId():r.id;routes.push(r);added++;}}normalizeRoutes();persistRoutes();persist();refreshRouteSelect();renderRouteTable();render();alert(`Đã nhập danh mục: thêm ${added} tuyến, cập nhật ${updated} tuyến.`);}catch(err){alert('Không thể nhập danh mục tuyến: '+err.message);}e.target.value='';};rd.readAsArrayBuffer(f);}
+function exportRoutesExcel(){if(typeof XLSX==='undefined')return alert('Không tải được thư viện Excel.');const rows=routes.map((r,i)=>({'STT':i+1,'Mã tuyến':r.id,'Tên tuyến':r.name,'Điểm đầu':r.dau,'Điểm cuối':r.cuoi,'Chiều dài (m)':r.tong,'Ghi chú':r.note||'','Quy cách mương mặc định':r.defaultSpec||''}));const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:6},{wch:10},{wch:28},{wch:34},{wch:34},{wch:16},{wch:30},{wch:34}];XLSX.utils.book_append_sheet(wb,ws,'Danh mục tuyến');XLSX.writeFile(wb,'Danh_muc_tuyen_duong_'+today()+'.xlsx');}
+
+function readNumber(id, fallback=0){
+ const raw=String($(id)?.value ?? '').trim().replace(',','.');
+ if(raw==='') return fallback;
+ const n=Number(raw); return Number.isFinite(n)?n:fallback;
+}
+function saveRecord(e){
+ if(e){e.preventDefault();e.stopPropagation();}
+ try{
+   const routeId=String($('selectRoute').value||'').trim();
+   const r=routes.find(x=>String(x.id)===routeId);
+   if(!r){setSaveStatus('Chưa lưu: vui lòng chọn tuyến đường.','warning');alert('Vui lòng chọn tuyến đường trước khi lưu.');return false;}
+
+   const chieuDaiPhai=Math.max(0,readNumber('rightLength',0));
+   const chieuDaiTrai=Math.max(0,readNumber('leftLength',0));
+   const chieuDai=chieuDaiPhai+chieuDaiTrai;
+   const rong=readNumber('width',0.5);
+   const dayBun=readNumber('mudDepth',0);
+   const hoThuPhai=Math.max(0,Math.round(readNumber('rightPits',0)));
+   const hoThuTrai=Math.max(0,Math.round(readNumber('leftPits',0)));
+   const hoThu=hoThuPhai+hoThuTrai;
+   if(chieuDai<0 || rong<=0 || dayBun<0){setSaveStatus('Chưa lưu: kiểm tra chiều dài, chiều rộng và độ dày bùn.','warning');alert('Giá trị hình học không hợp lệ.');return false;}
+
+   const quyCach=String($('spec').value||'').trim() || r.defaultSpec || 'Chưa cập nhật quy cách';
+   $('spec').value=quyCach;
+   const rec={
+     idTuyen:Number(r.id),ten:r.name,diemDau:String($('surveyStart').value||r.dau||'').trim(),diemCuoi:String($('surveyEnd').value||r.cuoi||'').trim(),
+     ngay:$('surveyDate').value||today(),chieuDai,chieuDaiPhai,chieuDaiTrai,quyCach,rong,dayBun,hoThu,hoThuPhai,hoThuTrai,
+     mucDo:$('level').value||'Bình thường',ghiChu:String($('notes').value||'').trim(),
+     hinhAnh:currentImage||'',updatedAt:new Date().toISOString(),updatedBy:currentUser?.fullName||currentUser?.username||''
+   };
+   calc(rec);
+
+   // Mỗi tuyến có một bản ghi khảo sát hiện hành. Thêm mới hoặc ghi đè đúng tuyến.
+   const idx=data.findIndex(x=>String(x.idTuyen)===String(r.id));
+   const isUpdate=idx>=0;
+   if(isUpdate) data[idx]=rec; else data.push(rec);
+
+   // Nhớ quy cách để lần sau chọn tuyến tự điền.
+   if(rec.quyCach && rec.quyCach!=='Chưa cập nhật quy cách' && r.defaultSpec!==rec.quyCach){
+     r.defaultSpec=rec.quyCach; persistRoutes(); renderRouteTable();
+   }
+
+   if(!persist()) return false;
+   // Đọc lại từ localStorage để đảm bảo bản ghi thực sự đã được ghi.
+   const verified=loadSurveyData();
+   const saved=verified.find(x=>String(x.idTuyen)===String(r.id));
+   if(!saved){setSaveStatus('Lỗi: dữ liệu chưa được ghi vào bộ nhớ.','danger');alert('Dữ liệu chưa được ghi thành công.');return false;}
+   data=verified;
+
+   lastSavedRouteId=r.id;
+   $('editId').value=String(r.id);
+   $('searchText').value=''; $('filterLevel').value='';
+   render(); refreshRouteSelect(r.id); loadRoute();
+   setSaveStatus(`${isUpdate?'ĐÃ CẬP NHẬT':'ĐÃ LƯU'}: ${r.name} • ${formatDateVN(saved.ngay)} • ${saved.khoiLuongBun.toLocaleString('vi-VN')} m³`,'success');
+   setTimeout(()=>document.querySelector(`[data-route-id="${r.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}),100);
+   return false;
+ }catch(err){
+   console.error(err); setSaveStatus('Lỗi khi lưu: '+(err?.message||err),'danger'); alert('Có lỗi khi lưu dữ liệu khảo sát: '+(err?.message||err)); return false;
+ }
+}
+function calc(x){x.khoiLuongBun=Number((x.chieuDai*x.rong*x.dayBun).toFixed(2)); x.thanhTien=Math.round(x.khoiLuongBun*Number($('cfgMudPrice').value||0)+x.hoThu*Number($('cfgPitPrice').value||0));}
+function recalcAll(){localStorage.setItem(SETTINGS,JSON.stringify({mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}));data.forEach(calc);persist();render();}
+
+function render(){const q=$('searchText').value.toLowerCase().trim(),lv=$('filterLevel').value; const rows=data.filter(x=>(!lv||x.mucDo===lv)&&(!q||[x.ten,x.diemDau,x.diemCuoi,x.quyCach,x.ghiChu].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.idTuyen-b.idTuyen); let totalMud=0,totalCost=0,totalPits=0,totalLen=0,severe=0; data.forEach(x=>{totalMud+=Number(x.khoiLuongBun)||0;totalCost+=Number(x.thanhTien)||0;totalPits+=Number(x.hoThu)||0;totalLen+=Number(x.chieuDai)||0;if(x.mucDo!=='Bình thường')severe++}); $('kpiRoutes').textContent=`${data.length}/${routes.length}`;$('kpiLength').textContent=totalLen.toLocaleString('vi-VN')+' m';$('kpiMud').textContent=totalMud.toFixed(2)+' m³';$('kpiPits').textContent=totalPits.toLocaleString('vi-VN');$('kpiSevere').textContent=severe;$('kpiCost').textContent=money(totalCost);
+ const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="16" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})">`:'<span class="muted">—</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • bùn=${x.dayBun}m</span></td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap"><button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa</button></td></tr>`}).join('');}
+function editRecord(id){const x=data.find(r=>String(r.idTuyen)===String(id));if(!x)return;$('editId').value=id;$('selectRoute').value=id;loadRoute();$('surveyDate').value=x.ngay||today();$('surveyStart').value=x.diemDau||'';$('surveyEnd').value=x.diemCuoi||'';$('rightLength').value=x.chieuDaiPhai??x.chieuDai??0;$('leftLength').value=x.chieuDaiTrai??0;$('spec').value=x.quyCach;$('width').value=x.rong;$('mudDepth').value=x.dayBun;$('rightPits').value=x.hoThuPhai??x.hoThu??0;$('leftPits').value=x.hoThuTrai??0;$('level').value=x.mucDo;$('notes').value=x.ghiChu||'';currentImage=x.hinhAnh||'';if(currentImage){$('photoPreview').src=currentImage;$('photoPreviewWrap').classList.remove('d-none')}$('formTitle').textContent='Chỉnh sửa khảo sát';$('cancelEdit').classList.remove('d-none');window.scrollTo({top:0,behavior:'smooth'})}
+function resetForm(){$('surveyForm').reset();$('editId').value='';$('surveyDate').value=today();$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('width').value=.5;currentImage='';$('photoPreviewWrap').classList.add('d-none');$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');loadRoute();}
+function deleteRecord(id){if(confirm('Xóa bản ghi tuyến này?')){data=data.filter(x=>String(x.idTuyen)!==String(id));persist();render()}}
+function clearAll(){if(confirm('Xóa TOÀN BỘ dữ liệu khảo sát? Hành động này không thể hoàn tác nếu chưa sao lưu.')){data=[];persist();render()}}
+function showImage(id){const x=data.find(r=>String(r.idTuyen)===String(id));if(!x?.hinhAnh)return;$('modalImage').src=x.hinhAnh;new bootstrap.Modal($('imgModal')).show()}
+function compressImage(file,maxW,quality){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const scale=Math.min(1,maxW/img.width);const c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext('2d').drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',quality))};img.onerror=reject;img.src=e.target.result};reader.onerror=reject;reader.readAsDataURL(file)})}
+
+function cloudSetStatus(msg,type='info'){
+ const a=$('cloudAlert');if(a){a.className=`alert alert-${type} py-2 small`;a.textContent=msg}
+ const d=$('cloudDot');if(d){d.className='cloud-dot'+(type==='success'?' on':type==='danger'?' err':'')}
+}
+function getFirebaseConfig(){const shared=window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.firebase;if(shared&&shared.apiKey&&shared.projectId)return shared;return safeParse(localStorage.getItem(CLOUD_CFG_STORE),null)}
+function saveFirebaseConfig(){try{const cfg=JSON.parse($('firebaseConfigInput').value.trim());if(!cfg.apiKey||!cfg.projectId)throw new Error('Thiếu apiKey/projectId');localStorage.setItem(CLOUD_CFG_STORE,JSON.stringify(cfg));cloudSetStatus('Đã lưu cấu hình Firebase. Bấm Kết nối.','success')}catch(e){cloudSetStatus('Firebase Config không hợp lệ: '+e.message,'danger')}}
+function ensureFirebase(){
+ const cfg=getFirebaseConfig();if(!cfg)throw new Error('Chưa lưu Firebase Config.');
+ if(typeof firebase==='undefined')throw new Error('Không tải được thư viện Firebase. Kiểm tra Internet.');
+ let app;try{app=firebase.apps.length?firebase.app():firebase.initializeApp(cfg)}catch(e){throw new Error('Không khởi tạo Firebase: '+e.message)}
+ cloudAuth=app.auth();cloudDb=app.firestore();return true;
+}
+function cloudPath(){return `workspaces/${cloudWorkspace}`}
+async function cloudRegister(){
+ try{ensureFirebase();const email=$('cloudEmail').value.trim().toLowerCase(),pass=$('cloudPassword').value;if(!email||pass.length<6)throw new Error('Nhập email và mật khẩu từ 6 ký tự.');const cred=await cloudAuth.createUserWithEmailAndPassword(email,pass);cloudUser=cred.user;cloudSetStatus('Đăng ký Cloud thành công. Nhập Workspace rồi bấm Kết nối.','success')}catch(e){cloudSetStatus('Không đăng ký được: '+e.message,'danger')}
+}
+async function cloudConnect(){
+ try{
+  ensureFirebase();const email=$('cloudEmail').value.trim().toLowerCase(),pass=$('cloudPassword').value,ws=($('cloudWorkspace').value||'').trim().replace(/[^a-zA-Z0-9_-]/g,'');if(!ws)throw new Error('Nhập Mã Workspace.');
+  cloudWorkspace=ws;localStorage.setItem(CLOUD_WS_STORE,ws);
+  const cred=cloudAuth.currentUser&&cloudAuth.currentUser.email===email?{user:cloudAuth.currentUser}:await cloudAuth.signInWithEmailAndPassword(email,pass);cloudUser=cred.user;
+  const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`),stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
+  let metaSnap=null;
+  try{metaSnap=await metaRef.get()}catch(readErr){
+    // Workspace mới có thể chưa cho phép đọc vì chưa có meta; thử tạo với chính tài khoản hiện tại làm chủ.
+    cloudMeta={ownerUid:cloudUser.uid,ownerEmail:cloudUser.email,allowedEmails:[cloudUser.email],createdAt:new Date().toISOString()};
+    try{await metaRef.set(cloudMeta);metaSnap=await metaRef.get()}catch(createErr){throw new Error('Workspace chưa tồn tại hoặc tài khoản chưa được cấp quyền. '+createErr.message)}
+  }
+  if(!metaSnap.exists){cloudMeta={ownerUid:cloudUser.uid,ownerEmail:cloudUser.email,allowedEmails:[cloudUser.email],createdAt:new Date().toISOString()};await metaRef.set(cloudMeta)}else{cloudMeta=metaSnap.data();const allowed=(cloudMeta.allowedEmails||[]).map(x=>String(x).toLowerCase());if(cloudMeta.ownerUid!==cloudUser.uid&&!allowed.includes(String(cloudUser.email).toLowerCase()))throw new Error('Tài khoản chưa được chủ Workspace cấp quyền.');}
+  const stateSnap=await stateRef.get();
+  if(stateSnap.exists){applyCloudState(stateSnap.data())}else{await stateRef.set(buildCloudState())}
+  if(cloudUnsub)cloudUnsub();cloudUnsub=stateRef.onSnapshot(snap=>{if(snap.exists&&!cloudApplying)applyCloudState(snap.data())},err=>cloudSetStatus('Mất đồng bộ: '+err.message,'danger'));
+  renderPermissionPanel();cloudSetStatus(`Đã kết nối ${ws} • ${cloudUser.email}. Dữ liệu sẽ tự đồng bộ.`,`success`);
+ }catch(e){cloudSetStatus('Không kết nối được Cloud: '+e.message,'danger')}
+}
+function buildCloudState(){return {version:5,updatedAt:new Date().toISOString(),updatedBy:cloudUser?.email||currentUser?.username||'',routes:routes,data:data,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}}}
+function applyCloudState(obj){
+ try{cloudApplying=true;if(Array.isArray(obj.routes)&&obj.routes.length){routes=obj.routes;normalizeRoutes();localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));refreshRouteSelect($('selectRoute').value)}if(Array.isArray(obj.data)){data=obj.data.map(normalizeSurveyRow).filter(Boolean);localStorage.setItem(STORE,JSON.stringify(data))}if(obj.settings){$('cfgMudPrice').value=obj.settings.mudPrice??$('cfgMudPrice').value;$('cfgPitPrice').value=obj.settings.pitPrice??$('cfgPitPrice').value}render();renderRouteTable();cloudSetStatus(`Đã đồng bộ lúc ${new Date().toLocaleTimeString('vi-VN')}`,'success')}finally{setTimeout(()=>cloudApplying=false,150)}
+}
+function scheduleCloudPush(){if(!cloudDb||!cloudUser||!cloudWorkspace||cloudApplying)return;clearTimeout(cloudPushTimer);cloudPushTimer=setTimeout(cloudPushState,500)}
+async function cloudPushState(){if(!cloudDb||!cloudUser||!cloudWorkspace||cloudApplying)return;try{await cloudDb.doc(`${cloudPath()}/state/main`).set(buildCloudState(),{merge:false});cloudSetStatus(`Đã đồng bộ • ${cloudUser.email}`,'success')}catch(e){cloudSetStatus('Lưu Cloud lỗi: '+e.message,'danger')}}
+async function cloudDisconnect(){try{if(cloudUnsub)cloudUnsub();cloudUnsub=null;if(cloudAuth)await cloudAuth.signOut()}catch{}cloudDb=null;cloudAuth=null;cloudUser=null;cloudMeta=null;cloudWorkspace='';$('permissionPanel')?.classList.add('d-none');cloudSetStatus('Đã ngắt Cloud. Đang dùng dữ liệu cục bộ.','info')}
+function renderPermissionPanel(){const p=$('permissionPanel');if(!p||!cloudMeta||!cloudUser)return;const owner=cloudMeta.ownerUid===cloudUser.uid;p.classList.toggle('d-none',!owner);if(owner){const arr=cloudMeta.allowedEmails||[];$('allowedList').innerHTML='<b>Đang được phép:</b> '+arr.map(escapeHtml).join(', ')}}
+async function grantCloudAccess(){try{if(!cloudMeta||cloudMeta.ownerUid!==cloudUser?.uid)throw new Error('Chỉ chủ Workspace được cấp quyền.');const email=$('allowEmail').value.trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(email))throw new Error('Email không hợp lệ.');const set=new Set((cloudMeta.allowedEmails||[]).map(x=>String(x).toLowerCase()));set.add(email);cloudMeta.allowedEmails=[...set];await cloudDb.doc(`${cloudPath()}/config/meta`).set(cloudMeta,{merge:true});$('allowEmail').value='';renderPermissionPanel();cloudSetStatus('Đã cấp quyền cho '+email,'success')}catch(e){cloudSetStatus('Không cấp quyền được: '+e.message,'danger')}}
+function initCloudUI(){const cfg=getFirebaseConfig();if(cfg)$('firebaseConfigInput').value=JSON.stringify(cfg,null,2);const fixedWs=(window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.workspace)||'';$('cloudWorkspace').value=fixedWs||localStorage.getItem(CLOUD_WS_STORE)||'';if(fixedWs){$('cloudWorkspace').readOnly=true;const ta=$('firebaseConfigInput');if(ta){ta.readOnly=true;ta.closest('.row')?.querySelector('button')?.classList.add('d-none')}}}
+
+function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),settings:{mudPrice:Number($('cfgMudPrice').value),pitPrice:Number($('cfgPitPrice').value)},routes,data};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'Sao_luu_khao_sat_muong_'+today()+'.json')}
+function restoreJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!Array.isArray(obj.data))throw 0;if(!confirm(`Khôi phục ${obj.data.length} bản ghi và thay thế dữ liệu hiện tại?`))return;data=obj.data;if(Array.isArray(obj.routes)&&obj.routes.length){routes=obj.routes;normalizeRoutes();persistRoutes();refreshRouteSelect();}if(obj.settings){$('cfgMudPrice').value=obj.settings.mudPrice??$('cfgMudPrice').value;$('cfgPitPrice').value=obj.settings.pitPrice??$('cfgPitPrice').value}data.forEach(x=>{if(x.khoiLuongBun==null)calc(x)});persist();recalcAll();alert('Khôi phục dữ liệu thành công.')}catch{alert('File sao lưu không hợp lệ.')}};r.readAsText(f);e.target.value='';}
+function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function exportExcel(){if(!data.length)return alert('Chưa có dữ liệu để xuất.'); if(typeof XLSX==='undefined')return alert('Không tải được thư viện Excel. Hãy kiểm tra kết nối Internet.'); const detail=data.sort((a,b)=>a.idTuyen-b.idTuyen).map((x,i)=>({'STT':i+1,'Tên tuyến đường':x.ten,'Điểm đầu':x.diemDau,'Điểm cuối':x.diemCuoi,'Ngày khảo sát':formatDateVN(x.ngay),'Chiều dài phải tuyến (m)':x.chieuDaiPhai||0,'Số hố thu phải tuyến':x.hoThuPhai||0,'Chiều dài trái tuyến (m)':x.chieuDaiTrai||0,'Số hố thu trái tuyến':x.hoThuTrai||0,'Tổng chiều dài xử lý (m)':x.chieuDai,'Quy cách':x.quyCach,'Chiều rộng (m)':x.rong,'Bùn dày (m)':x.dayBun,'Khối lượng bùn (m³)':x.khoiLuongBun,'Tổng số hố thu':x.hoThu,'Mức độ':x.mucDo,'Ghi chú':x.ghiChu,'Người cập nhật':x.updatedBy||'','Dự toán (VNĐ)':x.thanhTien})); const summary=[{'Chỉ tiêu':'Số tuyến đã khảo sát','Giá trị':data.length,'Đơn vị':'tuyến'},{'Chỉ tiêu':'Tổng chiều dài xử lý','Giá trị':data.reduce((s,x)=>s+x.chieuDai,0),'Đơn vị':'m'},{'Chỉ tiêu':'Tổng khối lượng bùn','Giá trị':data.reduce((s,x)=>s+x.khoiLuongBun,0),'Đơn vị':'m³'},{'Chỉ tiêu':'Tổng hố thu','Giá trị':data.reduce((s,x)=>s+x.hoThu,0),'Đơn vị':'hố'},{'Chỉ tiêu':'Tổng dự toán','Giá trị':data.reduce((s,x)=>s+x.thanhTien,0),'Đơn vị':'VNĐ'}]; const wb=XLSX.utils.book_new(),ws1=XLSX.utils.json_to_sheet(detail),ws2=XLSX.utils.json_to_sheet(summary);ws1['!cols']=[{wch:6},{wch:24},{wch:28},{wch:28},{wch:14},{wch:18},{wch:18},{wch:18},{wch:18},{wch:20},{wch:28},{wch:14},{wch:14},{wch:20},{wch:16},{wch:18},{wch:32},{wch:18},{wch:18}];ws2['!cols']=[{wch:28},{wch:18},{wch:12}];XLSX.utils.book_append_sheet(wb,ws1,'Chi tiết khảo sát');XLSX.utils.book_append_sheet(wb,ws2,'Tổng hợp');XLSX.writeFile(wb,'Bao_cao_khao_sat_du_toan_muong_'+today()+'.xlsx')}
+
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;const b=$('installPwaBtn');if(b)b.classList.remove('d-none')});
+window.addEventListener('appinstalled',()=>{const b=$('installPwaBtn');if(b)b.classList.add('d-none');deferredInstallPrompt=null});
+document.addEventListener('click',async e=>{if(e.target?.id==='installPwaBtn'&&deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;e.target.classList.add('d-none')}});
+if('serviceWorker' in navigator && location.protocol==='https:') window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+
+window.addEventListener('DOMContentLoaded',()=>{initCloudUI();initAuth();});
+</script>
+</body></html>
