@@ -19,5 +19,9 @@ service cloud.firestore {
     match /workspaces/{ws}/state/{docId} {
       allow read, write: if isAllowed(ws);
     }
-  }
+  
+    match /workspaces/{ws}/photos/{docId} {
+      allow read, write: if isMember(ws);
+    }
+}
 }
