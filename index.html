@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát & Dự toán Mương Cửa Lò - Cloud OTP - Ảnh FIX</title>
+<title>QL Khảo sát & Dự toán Mương Cửa Lò - Cloud - Ảnh FIX</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -68,24 +68,9 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
    <div class="mb-2"><label class="form-label">Tên đăng nhập</label><input id="regUsername" class="form-control" minlength="3" autocomplete="username" required><div class="small-note">Ít nhất 3 ký tự, không dùng khoảng trắng.</div></div>
    <div class="mb-2"><label class="form-label">Mật khẩu</label><input id="regPassword" type="password" class="form-control" minlength="6" autocomplete="new-password" required></div>
    <div class="mb-2"><label class="form-label">Nhập lại mật khẩu</label><input id="regPassword2" type="password" class="form-control" minlength="6" autocomplete="new-password" required></div>
-   <div class="mb-2">
-    <label class="form-label">Số điện thoại xác minh</label>
-    <input id="regPhone" class="form-control fw-bold" value="0928766669" readonly>
-    <div class="small-note mt-1">Mã OTP đăng ký chỉ gửi tới số quản trị 0928766669.</div>
-   </div>
-   <div class="mb-2">
-    <label class="form-label">Mã xác nhận OTP</label>
-    <div class="input-group">
-     <input id="regSmsCode" class="form-control" inputmode="numeric" maxlength="6" placeholder="Nhập 6 số OTP">
-     <button id="sendOtpBtn" class="btn btn-outline-primary" type="button" onclick="sendRegistrationCode()">Gửi mã OTP</button>
-     <button id="verifyOtpBtn" class="btn btn-outline-success" type="button" onclick="verifyRegistrationCode()">Xác minh</button>
-    </div>
-    <div id="regSmsStatus" class="small-note mt-1">Chưa gửi mã OTP.</div>
-    <div id="registrationRecaptcha"></div>
-   </div>
-   <button id="registerSubmitBtn" class="btn btn-success w-100 py-2 fw-bold" type="submit" disabled>ĐĂNG KÝ TÀI KHOẢN</button>
+   <button id="registerSubmitBtn" class="btn btn-success w-100 py-2 fw-bold" type="submit">ĐĂNG KÝ TÀI KHOẢN</button>
   </form>
-  <div class="small-note mt-3 text-center">Đăng ký tài khoản phải xác minh OTP gửi tới số quản trị 0928766669. Firebase Phone Authentication phải được bật.</div>
+  <div class="small-note mt-3 text-center">Đăng ký tài khoản trực tiếp, không yêu cầu mã OTP.</div>
  </div>
 </div>
 <header class="app-header">
@@ -217,7 +202,6 @@ const LEGACY_STORES=['CUL0_DRAINAGE_SURVEY_V2','SURVEY_DATA_STORE','CUALO_DRAINA
 let data=[]; let currentImage=''; let pendingImagePromise=null; let photoChanged=false; let lastSavedRouteId=null;
 const ACCOUNTS_STORE='CUALO_LOCAL_ACCOUNTS_V1', SESSION_STORE='CUALO_LOCAL_SESSION_V1';
 let currentUser=null;
-let registrationConfirmation=null, registrationPhoneVerified=false, registrationVerifier=null;
 const CLOUD_CFG_STORE='CUALO_FIREBASE_CONFIG_V1', CLOUD_WS_STORE='CUALO_CLOUD_WORKSPACE_V1';
 let cloudDb=null,cloudAuth=null,cloudUser=null,cloudWorkspace='',cloudUnsub=null,cloudPhotoUnsub=null,cloudApplying=false,cloudPushTimer=null,cloudMeta=null;
 const $=id=>document.getElementById(id);
@@ -239,78 +223,23 @@ async function hashPassword(text){
 }
 function showAuthMessage(msg,type='danger'){const el=$('authMessage');el.className=`alert alert-${type} py-2 small`;el.textContent=msg;el.classList.remove('d-none')}
 function showAuthTab(which){const login=which==='login';$('loginForm').classList.toggle('d-none',!login);$('registerForm').classList.toggle('d-none',login);$('tabLogin').classList.toggle('active',login);$('tabRegister').classList.toggle('active',!login);$('authMessage').classList.add('d-none')}
-async function registerAccount(e){e.preventDefault();if(!registrationPhoneVerified)return showAuthMessage('Vui lòng gửi và xác minh mã OTP tới số 0928766669 trước khi đăng ký.','warning');const fullName=$('regFullName').value.trim();const username=$('regUsername').value.trim().toLowerCase();const p1=$('regPassword').value,p2=$('regPassword2').value;if(!/^[a-zA-Z0-9._-]{3,30}$/.test(username))return showAuthMessage('Tên đăng nhập chỉ dùng chữ, số, dấu chấm, gạch dưới hoặc gạch ngang; từ 3–30 ký tự.');if(p1.length<6)return showAuthMessage('Mật khẩu phải có ít nhất 6 ký tự.');if(p1!==p2)return showAuthMessage('Hai lần nhập mật khẩu chưa khớp.');const arr=getAccounts();if(arr.some(a=>a.username===username))return showAuthMessage('Tên đăng nhập này đã tồn tại.');const passwordHash=await hashPassword(p1);arr.push({id:Date.now(),fullName,username,phone:'0928766669',passwordHash,createdAt:new Date().toISOString(),role:arr.length?'Người dùng':'Quản trị'});saveAccounts(arr);$('loginUsername').value=username;$('loginPassword').value='';registrationPhoneVerified=false;registrationConfirmation=null;$('regSmsCode').value='';if($('registerSubmitBtn'))$('registerSubmitBtn').disabled=true;if($('regSmsStatus'))$('regSmsStatus').textContent='Chưa gửi mã OTP.';showAuthTab('login');showAuthMessage('Đăng ký thành công. Vui lòng đăng nhập.','success')}
-
-function setRegSmsStatus(msg,type=''){
- const el=$('regSmsStatus');if(!el)return;
- el.textContent=msg;
- el.className='small-note mt-1'+(type==='success'?' text-success':type==='danger'?' text-danger':'');
+async function registerAccount(e){
+ e.preventDefault();
+ const fullName=$('regFullName').value.trim();
+ const username=$('regUsername').value.trim().toLowerCase();
+ const p1=$('regPassword').value,p2=$('regPassword2').value;
+ if(!fullName)return showAuthMessage('Vui lòng nhập họ và tên.');
+ if(!/^[a-zA-Z0-9._-]{3,30}$/.test(username))return showAuthMessage('Tên đăng nhập chỉ dùng chữ, số, dấu chấm, gạch dưới hoặc gạch ngang; từ 3–30 ký tự.');
+ if(p1.length<6)return showAuthMessage('Mật khẩu phải có ít nhất 6 ký tự.');
+ if(p1!==p2)return showAuthMessage('Hai lần nhập mật khẩu chưa khớp.');
+ const arr=getAccounts();
+ if(arr.some(a=>a.username===username))return showAuthMessage('Tên đăng nhập này đã tồn tại.');
+ const passwordHash=await hashPassword(p1);
+ arr.push({id:Date.now(),fullName,username,passwordHash,createdAt:new Date().toISOString(),role:arr.length?'Người dùng':'Quản trị'});
+ saveAccounts(arr);
+ $('loginUsername').value=username;$('loginPassword').value='';
+ showAuthTab('login');showAuthMessage('Đăng ký thành công. Vui lòng đăng nhập.','success');
 }
-function friendlyOtpError(e){
- const code=String(e?.code||'');
- const msg=String(e?.message||e||'');
- const map={
-  'auth/unauthorized-domain':'Tên miền website chưa có trong Firebase Authentication → Settings → Authorized domains.',
-  'auth/quota-exceeded':'Đã vượt hạn mức SMS của Firebase trong ngày.',
-  'auth/too-many-requests':'Firebase tạm chặn do gửi OTP quá nhiều lần. Vui lòng chờ rồi thử lại.',
-  'auth/invalid-phone-number':'Số điện thoại không hợp lệ.',
-  'auth/captcha-check-failed':'reCAPTCHA xác minh không thành công. Hãy tải lại trang và thử lại.',
-  'auth/missing-phone-number':'Thiếu số điện thoại.',
-  'auth/operation-not-allowed':'Phone Authentication chưa được bật trong Firebase.',
-  'auth/code-expired':'Mã OTP đã hết hạn.',
-  'auth/invalid-verification-code':'Mã OTP không đúng.'
- };
- return (map[code]||msg)+(code?` [${code}]`:'');
-}
-async function sendRegistrationCode(){
- try{
-  ensureFirebase();
-  registrationPhoneVerified=false;
-  registrationConfirmation=null;
-  if($('registerSubmitBtn'))$('registerSubmitBtn').disabled=true;
-  if(registrationVerifier){try{registrationVerifier.clear()}catch{} registrationVerifier=null;}
-  registrationVerifier=new firebase.auth.RecaptchaVerifier('registrationRecaptcha',{
-   size:'invisible',
-   callback:()=>{}
-  });
-  setRegSmsStatus('Đang gửi mã OTP tới 0928766669...');
-  registrationConfirmation=await cloudAuth.signInWithPhoneNumber('+84928766669',registrationVerifier);
-  setRegSmsStatus('Đã gửi OTP tới 0928766669. Nhập mã rồi bấm Xác minh.','success');
- }catch(e){
-  console.error('OTP SEND ERROR',e);
-  registrationPhoneVerified=false;
-  registrationConfirmation=null;
-  if(registrationVerifier){try{registrationVerifier.clear()}catch{} registrationVerifier=null;}
-  const detail=friendlyOtpError(e);
-  setRegSmsStatus('Không gửi được OTP: '+detail,'danger');
-  showAuthMessage('Không gửi được mã OTP: '+detail,'danger');
- }
-}
-async function verifyRegistrationCode(){
- try{
-  const code=String($('regSmsCode')?.value||'').trim();
-  if(!registrationConfirmation)throw {code:'auth/no-verification-id',message:'Hãy bấm Gửi mã OTP trước.'};
-  if(!/^\d{6}$/.test(code))throw {code:'auth/invalid-verification-code',message:'Mã OTP phải gồm 6 chữ số.'};
-  setRegSmsStatus('Đang xác minh mã OTP...');
-  const result=await registrationConfirmation.confirm(code);
-  if(result?.user?.phoneNumber && result.user.phoneNumber!=='+84928766669'){
-   throw new Error('Số điện thoại xác minh không đúng số quản trị.');
-  }
-  registrationPhoneVerified=true;
-  if($('registerSubmitBtn'))$('registerSubmitBtn').disabled=false;
-  setRegSmsStatus('Xác minh OTP thành công. Có thể đăng ký tài khoản.','success');
-  showAuthMessage('Xác minh OTP thành công. Bấm ĐĂNG KÝ TÀI KHOẢN.','success');
-  try{await cloudAuth.signOut()}catch{}
- }catch(e){
-  console.error('OTP VERIFY ERROR',e);
-  registrationPhoneVerified=false;
-  if($('registerSubmitBtn'))$('registerSubmitBtn').disabled=true;
-  const detail=friendlyOtpError(e);
-  setRegSmsStatus('Xác minh thất bại: '+detail,'danger');
-  showAuthMessage('Xác minh OTP không thành công: '+detail,'danger');
- }
-}
-
 async function loginAccount(e){e.preventDefault();const username=$('loginUsername').value.trim().toLowerCase(),password=$('loginPassword').value;const acc=getAccounts().find(a=>a.username===username);if(!acc)return showAuthMessage('Tên đăng nhập hoặc mật khẩu không đúng.');const h=await hashPassword(password);if(h!==acc.passwordHash)return showAuthMessage('Tên đăng nhập hoặc mật khẩu không đúng.');currentUser={id:acc.id,fullName:acc.fullName,username:acc.username,role:acc.role};sessionStorage.setItem(SESSION_STORE,JSON.stringify(currentUser));enterApp()}
 function enterApp(){if(!currentUser)return;$('authScreen').style.display='none';$('currentUserLabel').textContent=`${currentUser.fullName} (${currentUser.role})`;if(!window.__appInitialized){window.__appInitialized=true;initApp();}}
 function logoutAccount(){sessionStorage.removeItem(SESSION_STORE);currentUser=null;$('authScreen').style.display='flex';$('loginPassword').value='';showAuthTab('login')}
