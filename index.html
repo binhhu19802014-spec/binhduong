@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V12 42 tuyến & phân quyền theo tuyến</title>
+<title>QL Khảo sát Mương Cửa Lò - V13 42 tuyến bắt buộc Cloud</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -110,7 +110,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
   </div></div>
  </div>
 </main>
-<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">Thêm, sửa, cập nhật hoặc xóa tuyến. Dữ liệu được lưu tự động trên trình duyệt.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến gốc là danh mục bắt buộc và được đồng bộ Cloud. Máy chính sửa không giới hạn; máy phụ chỉ sửa tuyến được cấp 1 lần rồi khóa.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
 <div class="card border p-3 mb-3 shadow-none"><input type="hidden" id="routeEditId"><div class="row g-2"><div class="col-md-2"><label class="form-label">Mã/STT tuyến</label><input id="routeIdInput" type="number" min="1" class="form-control" placeholder="Tự tăng nếu bỏ trống"></div><div class="col-md-4"><label class="form-label">Tên tuyến đường</label><input id="routeNameInput" class="form-control" placeholder="VD: NGUYỄN HUỆ"></div><div class="col-md-3"><label class="form-label">Điểm đầu</label><input id="routeStartInput" class="form-control"></div><div class="col-md-3"><label class="form-label">Điểm cuối</label><input id="routeEndInput" class="form-control"></div><div class="col-md-2"><label class="form-label">Chiều dài (m)</label><input id="routeLengthInput" type="number" min="0" step="0.01" class="form-control"></div><div class="col-md-4"><label class="form-label">Ghi chú tuyến</label><input id="routeNoteInput" class="form-control" placeholder="Khu vực, loại tuyến..."></div><div class="col-md-4"><label class="form-label">Quy cách mương mặc định</label><input id="routeSpecInput" class="form-control" list="specOptions" placeholder="VD: Mương BTCT đúc sẵn, có tấm đan"></div><div class="col-md-8 d-flex align-items-end gap-2"><button class="btn btn-main" type="button" onclick="saveRoute()">Lưu / cập nhật tuyến</button><button class="btn btn-outline-secondary" type="button" onclick="resetRouteForm()">Nhập tuyến mới</button><button class="btn btn-outline-success" type="button" onclick="exportRoutesExcel()">Xuất danh mục</button><label class="btn btn-outline-primary mb-0">Nhập Excel<input id="routeImportFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="importRoutesExcel(event)"></label></div></div></div>
 <div class="row g-2 mb-2"><div class="col-md-6"><input id="routeSearch" class="form-control" placeholder="Tìm tên tuyến, điểm đầu, điểm cuối..." oninput="renderRouteTable()"></div><div class="col-md-6 text-md-end small text-muted align-self-center">Tổng số tuyến: <b id="routeCount">0</b></div></div>
 <div class="table-responsive" style="max-height:430px"><table class="table table-bordered table-hover align-middle small"><thead class="table-light"><tr><th>STT</th><th>Mã</th><th>Tên tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Chiều dài (m)</th><th>Ghi chú</th><th>Quy cách mặc định</th><th>Thao tác</th></tr></thead><tbody id="routeTableBody"></tbody></table></div>
@@ -249,17 +249,33 @@ function isRouteAssignedToCurrentDevice(id){
  const a=routeAssignmentInfo(id);
  return !!(a && a.active!==false && String(a.deviceId)===String(deviceId));
 }
-function ensure42RoutesLocal(){
- const byId=new Map((Array.isArray(routes)?routes:[]).map(r=>[Number(r.id),r]));
- defaultRoutes.forEach(def=>{
-   if(!byId.has(Number(def.id))){
-     byId.set(Number(def.id),{...def,note:'',defaultSpec:''});
-   }
+function mandatoryRouteIds(){return new Set(defaultRoutes.map(r=>Number(r.id)))}
+function countMandatoryRoutes(list){
+ const ids=new Set((Array.isArray(list)?list:[]).map(r=>Number(r?.id)).filter(Number.isFinite));
+ return defaultRoutes.reduce((n,r)=>n+(ids.has(Number(r.id))?1:0),0);
+}
+function ensure42RoutesLocal(sourceRoutes=routes){
+ const incoming=Array.isArray(sourceRoutes)?sourceRoutes:[];
+ const incomingById=new Map(incoming.map(r=>[Number(r?.id),r]).filter(([id])=>Number.isFinite(id)));
+ const merged=defaultRoutes.map(def=>{
+   const existing=incomingById.get(Number(def.id));
+   return existing
+     ? {...def,...existing,id:Number(def.id),note:existing.note??'',defaultSpec:existing.defaultSpec??''}
+     : {...def,note:'',defaultSpec:''};
  });
- routes=Array.from(byId.values());
+ const mandatory=mandatoryRouteIds();
+ incoming.forEach(r=>{
+   const id=Number(r?.id);
+   if(Number.isFinite(id)&&!mandatory.has(id))merged.push(r);
+ });
+ routes=merged;
  normalizeRoutes();
  try{localStorage.setItem(ROUTES_STORE,JSON.stringify(routes))}catch{}
- return routes.length;
+ return countMandatoryRoutes(routes);
+}
+function cloudNeedsMandatoryRepair(obj){
+ const list=Array.isArray(obj?.routes)?obj.routes:[];
+ return countMandatoryRoutes(list)<defaultRoutes.length;
 }
 function surveyLockInfo(id){return cloudMeta?.surveyLocks?.[String(id)]||null}
 async function claimSurveyEditLock(id){
@@ -370,8 +386,9 @@ function initApp(){
  data=loadSurveyData();
  routes=safeParse(localStorage.getItem(ROUTES_STORE),null);
  if(!Array.isArray(routes))routes=[];
- ensure42RoutesLocal();
+ ensure42RoutesLocal(routes);
  refreshRouteSelect();
+ renderRouteTable();
  const st=safeParse(localStorage.getItem(SETTINGS),{}); if(st.mudPrice)$('cfgMudPrice').value=st.mudPrice;if(st.pitPrice)$('cfgPitPrice').value=st.pitPrice;$('surveyDate').value=today(); bind(); render(); renderRouteTable();
 }
 function bind(){
@@ -417,9 +434,17 @@ function applyRouteDefaultSpec(){const r=routes.find(x=>String(x.id)===String($(
 
 
 function normalizeRoutes(){routes=routes.map((r,i)=>({id:Number(r.id)||i+1,name:String(r.name||'').trim(),dau:String(r.dau||'').trim(),cuoi:String(r.cuoi||'').trim(),tong:Number(r.tong)||0,note:String(r.note||'').trim(),defaultSpec:String(r.defaultSpec||r.quyCach||'').trim()})).filter(r=>r.name).sort((a,b)=>a.id-b.id);}
-function persistRoutes(){try{localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));scheduleCloudPush()}catch(e){alert('Không thể lưu danh mục tuyến đường.')}}
+function persistRoutes(){
+ try{
+   ensure42RoutesLocal(routes);
+   localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));
+   scheduleCloudPush();
+ }catch(e){alert('Không thể lưu danh mục tuyến đường.')}
+}
 function refreshRouteSelect(selected){
- const sel=$('selectRoute');const cur=selected??sel.value;
+ if(countMandatoryRoutes(routes)<defaultRoutes.length)ensure42RoutesLocal(routes);
+ const sel=$('selectRoute');if(!sel)return;
+ const cur=selected??sel.value;
  sel.innerHTML='<option value="">-- Chọn tuyến --</option>';
  let list=routes.slice().sort((a,b)=>a.id-b.id);
  if(cloudUser&&!isMasterDevice())list=list.filter(r=>isRouteAssignedToCurrentDevice(r.id));
@@ -529,11 +554,16 @@ function resetRouteForm(){
 }
 function deleteRoute(id){
  if(!ensureMaster('xóa tuyến'))return;
+ if(mandatoryRouteIds().has(Number(id))){
+   alert('Đây là một trong 42 tuyến gốc bắt buộc nên không thể xóa. Máy chính vẫn có thể sửa thông tin tuyến.');
+   return;
+ }
  const linked=data.filter(x=>String(x.idTuyen)===String(id)).length;
  const msg=linked?`Tuyến này đang có ${linked} bản ghi khảo sát. Xóa tuyến sẽ KHÔNG xóa bản ghi khảo sát cũ nhưng tuyến sẽ không còn trong danh mục. Tiếp tục?`:'Xóa tuyến này khỏi danh mục?';
  if(!confirm(msg))return;routes=routes.filter(r=>r.id!==id);persistRoutes();refreshRouteSelect();renderRouteTable();render();
 }
 function renderRouteTable(){
+ if(countMandatoryRoutes(routes)<defaultRoutes.length)ensure42RoutesLocal(routes);
  const q=($('routeSearch')?.value||'').toLowerCase().trim();
  const rows=routes.filter(r=>!q||[r.name,r.dau,r.cuoi,r.note].join(' ').toLowerCase().includes(q)).sort((a,b)=>a.id-b.id);
  if($('routeCount'))$('routeCount').textContent=routes.length;
@@ -805,21 +835,35 @@ async function cloudConnect(){
    if(!isMasterDevice()&&!isAuthorizedDevice())await requestDeviceAccess();
    const stateSnap=await stateRef.get();
    if(stateSnap.exists){
-     applyCloudState(stateSnap.data());
-     // Khôi phục đủ 42 tuyến gốc nếu Cloud đang thiếu tuyến.
-     const beforeCount=routes.length;
-     ensure42RoutesLocal();
-     if(isMasterDevice() && routes.length>=42 && beforeCount<42){
+     const rawState=stateSnap.data()||{};
+     const mustRepair=cloudNeedsMandatoryRepair(rawState);
+     applyCloudState(rawState);
+     if(isMasterDevice() && mustRepair){
        await stateRef.set(buildCloudState(),{merge:false});
-       cloudSetStatus(`Đã khôi phục và đồng bộ đủ ${routes.length} tuyến lên Cloud.`,'success');
+       cloudSetStatus(`Cloud thiếu tuyến. Máy chính đã tự phục hồi đủ ${defaultRoutes.length} tuyến bắt buộc và giữ nguyên dữ liệu khảo sát.`,'success');
      }
    }else{
-     ensure42RoutesLocal();
-     if(isMasterDevice())await stateRef.set(buildCloudState(),{merge:false});
+     ensure42RoutesLocal(routes);
+     if(isMasterDevice()){
+       await stateRef.set(buildCloudState(),{merge:false});
+       cloudSetStatus(`Đã khởi tạo Cloud với đủ ${defaultRoutes.length} tuyến bắt buộc.`,'success');
+     }
    }
    refreshRouteSelect();
    renderRouteTable();
-   if(cloudUnsub)cloudUnsub();cloudUnsub=stateRef.onSnapshot(s=>{if(s.exists&&!cloudApplying)applyCloudState(s.data())},e=>cloudSetStatus('Mất đồng bộ dữ liệu: '+e.message,'danger'));
+   if(cloudUnsub)cloudUnsub();
+   cloudUnsub=stateRef.onSnapshot(async s=>{
+     if(!s.exists||cloudApplying)return;
+     const obj=s.data()||{};
+     const needsRepair=cloudNeedsMandatoryRepair(obj);
+     applyCloudState(obj);
+     if(isMasterDevice()&&needsRepair){
+       try{
+         await stateRef.set(buildCloudState(),{merge:false});
+         cloudSetStatus(`Phát hiện Cloud thiếu tuyến và đã tự phục hồi đủ ${defaultRoutes.length} tuyến.`,'success');
+       }catch(e){cloudSetStatus('Không thể tự phục hồi danh mục tuyến Cloud: '+e.message,'danger')}
+     }
+   },e=>cloudSetStatus('Mất đồng bộ dữ liệu: '+e.message,'danger'));
    if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=metaRef.onSnapshot(s=>{if(s.exists){cloudMeta=s.data();updateDeviceAccessUI();renderPermissionPanel();refreshRouteSelect($('selectRoute').value);renderRouteTable();}},e=>cloudSetStatus('Mất đồng bộ phân quyền: '+e.message,'danger'));
    await cloudLoadAndWatchPhotos();
    updateDeviceAccessUI();renderPermissionPanel();
@@ -827,17 +871,19 @@ async function cloudConnect(){
  }catch(e){cloudSetStatus('Không kết nối được Cloud: '+e.message,'danger')}
 }
 function buildCloudState(){
+ ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:12,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:routes,data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:13,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:routes,data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
    cloudApplying=true;
    if(Array.isArray(obj.routes)){
-     routes=obj.routes.slice();
-     ensure42RoutesLocal();
+     ensure42RoutesLocal(obj.routes);
      localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));
-     refreshRouteSelect($('selectRoute').value);
+     refreshRouteSelect($('selectRoute')?.value||'');
+   }else{
+     ensure42RoutesLocal(routes);
    }
    if(Array.isArray(obj.data)){
      const localPhotos=new Map(data.map(x=>[String(x.idTuyen),x.hinhAnh||'']));
