@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V14 Khởi tạo 42 tuyến trước Cloud</title>
+<title>QL Khảo sát Mương Cửa Lò - V15 Hiển thị đủ 42 tuyến</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -110,7 +110,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
   </div></div>
  </div>
 </main>
-<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến gốc được tạo ngay khi mở phần mềm và không thể bị Cloud rỗng ghi đè. Máy chính sửa không giới hạn; máy phụ chỉ sửa tuyến được cấp 1 lần rồi khóa.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến gốc được tạo và hiển thị ngay khi mở phần mềm, không phụ thuộc trạng thái Cloud. Máy chính sửa không giới hạn; máy phụ chỉ sửa tuyến được cấp 1 lần rồi khóa.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
 <div class="card border p-3 mb-3 shadow-none"><input type="hidden" id="routeEditId"><div class="row g-2"><div class="col-md-2"><label class="form-label">Mã/STT tuyến</label><input id="routeIdInput" type="number" min="1" class="form-control" placeholder="Tự tăng nếu bỏ trống"></div><div class="col-md-4"><label class="form-label">Tên tuyến đường</label><input id="routeNameInput" class="form-control" placeholder="VD: NGUYỄN HUỆ"></div><div class="col-md-3"><label class="form-label">Điểm đầu</label><input id="routeStartInput" class="form-control"></div><div class="col-md-3"><label class="form-label">Điểm cuối</label><input id="routeEndInput" class="form-control"></div><div class="col-md-2"><label class="form-label">Chiều dài (m)</label><input id="routeLengthInput" type="number" min="0" step="0.01" class="form-control"></div><div class="col-md-4"><label class="form-label">Ghi chú tuyến</label><input id="routeNoteInput" class="form-control" placeholder="Khu vực, loại tuyến..."></div><div class="col-md-4"><label class="form-label">Quy cách mương mặc định</label><input id="routeSpecInput" class="form-control" list="specOptions" placeholder="VD: Mương BTCT đúc sẵn, có tấm đan"></div><div class="col-md-8 d-flex align-items-end gap-2"><button class="btn btn-main" type="button" onclick="saveRoute()">Lưu / cập nhật tuyến</button><button class="btn btn-outline-secondary" type="button" onclick="resetRouteForm()">Nhập tuyến mới</button><button class="btn btn-outline-success" type="button" onclick="exportRoutesExcel()">Xuất danh mục</button><label class="btn btn-outline-primary mb-0">Nhập Excel<input id="routeImportFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="importRoutesExcel(event)"></label></div></div></div>
 <div class="row g-2 mb-2"><div class="col-md-6"><input id="routeSearch" class="form-control" placeholder="Tìm tên tuyến, điểm đầu, điểm cuối..." oninput="renderRouteTable()"></div><div class="col-md-6 text-md-end small text-muted align-self-center">Tổng số tuyến: <b id="routeCount">0</b></div></div>
 <div class="table-responsive" style="max-height:430px"><table class="table table-bordered table-hover align-middle small"><thead class="table-light"><tr><th>STT</th><th>Mã</th><th>Tên tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Chiều dài (m)</th><th>Ghi chú</th><th>Quy cách mặc định</th><th>Thao tác</th></tr></thead><tbody id="routeTableBody"></tbody></table></div>
@@ -159,6 +159,33 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 
 <script>
 const $=id=>document.getElementById(id);
+function safeParse(raw,fallback=null){
+ try{return raw==null||raw===''?fallback:JSON.parse(raw)}catch{return fallback}
+}
+function escapeHtml(value){
+ return String(value??'')
+   .replaceAll('&','&amp;')
+   .replaceAll('<','&lt;')
+   .replaceAll('>','&gt;')
+   .replaceAll('"','&quot;')
+   .replaceAll("'","&#039;");
+}
+function today(){
+ const d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+ return `${y}-${m}-${day}`;
+}
+function formatDateVN(value){
+ if(!value)return '';
+ const s=String(value).trim();
+ const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+ if(m)return `${m[3]}/${m[2]}/${m[1]}`;
+ const d=new Date(s);
+ return Number.isNaN(d.getTime())?s:d.toLocaleDateString('vi-VN');
+}
+function money(value){
+ const n=Number(value)||0;
+ return n.toLocaleString('vi-VN')+' đ';
+}
 const defaultRoutes = [
         {id: 1, name: "LÊ THỊ BẠCH CÁT", dau: "Nút giao đường chưa ghi tên, khu vực phía tây", cuoi: "Giao Phạm Huy", tong: 1300},
         {id: 2, name: "NGUYỄN THÂN MẾM", dau: "Giao Lê Thị Bạch Cát", cuoi: "Giao Nguyễn Xí", tong: 2400},
@@ -599,6 +626,7 @@ function renderRouteTable(){
  const master=isMasterDevice(),authorized=isAuthorizedDevice();
  const devices=(cloudMeta?.authorizedDevices||[]);
  tb.innerHTML=rows.length?rows.map((r,i)=>{
+   try{
    const lock=routeLockInfo(r.id),assignment=routeAssignmentInfo(r.id);
    let actions='',assignText='';
    if(master){
@@ -622,7 +650,11 @@ function renderRouteTable(){
      }
    }else actions='<span class="badge text-bg-warning">Chưa được cấp quyền</span>';
    const lockText=lock?.locked?`<div class="small text-muted mt-1">Khóa bởi ${escapeHtml(lock.byDeviceName||'thiết bị')}</div>`:'';
-   return `<tr><td>${i+1}</td><td>${r.id}</td><td class="fw-bold">${escapeHtml(r.name)}</td><td>${escapeHtml(r.dau)}</td><td>${escapeHtml(r.cuoi)}</td><td>${Number(r.tong).toLocaleString('vi-VN')}</td><td>${escapeHtml(r.note||'')}</td><td>${escapeHtml(r.defaultSpec||'')}</td><td>${actions}${assignText}${lockText}</td></tr>`;
+   return `<tr><td>${i+1}</td><td>${r.id}</td><td class="fw-bold">${escapeHtml(r.name)}</td><td>${escapeHtml(r.dau)}</td><td>${escapeHtml(r.cuoi)}</td><td>${Number(r.tong||0).toLocaleString('vi-VN')}</td><td>${escapeHtml(r.note||'')}</td><td>${escapeHtml(r.defaultSpec||'')}</td><td>${actions}${assignText}${lockText}</td></tr>`;
+   }catch(err){
+     console.error('ROUTE ROW RENDER ERROR',r,err);
+     return `<tr><td>${i+1}</td><td>${escapeHtml(r?.id||'')}</td><td class="fw-bold">${escapeHtml(r?.name||'Tuyến')}</td><td>${escapeHtml(r?.dau||'')}</td><td>${escapeHtml(r?.cuoi||'')}</td><td>${Number(r?.tong||0).toLocaleString('vi-VN')}</td><td>${escapeHtml(r?.note||'')}</td><td>${escapeHtml(r?.defaultSpec||'')}</td><td><span class="badge text-bg-secondary">Chưa kết nối quyền</span></td></tr>`;
+   }
  }).join(''):'<tr><td colspan="9" class="text-center text-muted py-3">Không có tuyến phù hợp.</td></tr>';
  const newBtn=document.querySelector('button[onclick="resetRouteForm()"]');if(newBtn)newBtn.classList.toggle('d-none',cloudUser&&!master);
  const imp=document.getElementById('routeImportFile')?.closest('label');if(imp)imp.classList.toggle('d-none',cloudUser&&!master);
