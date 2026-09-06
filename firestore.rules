@@ -2,26 +2,30 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function meta(ws) { return get(/databases/$(database)/documents/workspaces/$(ws)/config/meta).data; }
-    function isOwner(ws) { return signedIn() && meta(ws).ownerUid == request.auth.uid; }
-    function isAllowed(ws) {
-      return signedIn() && (isOwner(ws) || request.auth.token.email in meta(ws).allowedEmails);
+    function masterAccount() {
+      return signedIn() && request.auth.token.email == 'binhhu19802014@gmail.com';
+    }
+    function meta(ws) {
+      return get(/databases/$(database)/documents/workspaces/$(ws)/config/meta).data;
+    }
+    function isWorkspaceOwner(ws) {
+      return masterAccount() && meta(ws).ownerUid == request.auth.uid;
     }
 
+    // Toàn bộ dữ liệu Cloud chỉ chấp nhận tài khoản Firebase dùng chung duy nhất.
     match /workspaces/{ws}/config/meta {
-      allow create: if signedIn()
+      allow create: if masterAccount()
                     && request.resource.data.ownerUid == request.auth.uid
-                    && request.auth.token.email in request.resource.data.allowedEmails;
-      allow read: if signedIn() && (resource.data.ownerUid == request.auth.uid || request.auth.token.email in resource.data.allowedEmails);
-      allow update, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+                    && request.resource.data.ownerEmail == 'binhhu19802014@gmail.com';
+      allow read, update, delete: if masterAccount() && resource.data.ownerUid == request.auth.uid;
     }
 
     match /workspaces/{ws}/state/{docId} {
-      allow read, write: if isAllowed(ws);
+      allow read, write: if isWorkspaceOwner(ws);
     }
-  
+
     match /workspaces/{ws}/photos/{docId} {
-      allow read, write: if isMember(ws);
+      allow read, write: if isWorkspaceOwner(ws);
     }
-}
+  }
 }

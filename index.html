@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát & Dự toán Mương Cửa Lò - Cloud - Ảnh FIX</title>
+<title>QL Khảo sát Mương Cửa Lò - 1 tài khoản & phân quyền thiết bị</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -51,28 +51,6 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 </style>
 </head>
 <body>
-<div id="authScreen" class="auth-screen">
- <div class="auth-card">
-  <div class="auth-logo">QL</div>
-  <h4 class="text-center fw-bold mb-1">PHẦN MỀM KHẢO SÁT MƯƠNG</h4>
-  <p class="text-center text-muted small mb-3">Đăng nhập hoặc đăng ký tài khoản để sử dụng</p>
-  <div class="auth-tabs"><button id="tabLogin" class="active" type="button" onclick="showAuthTab('login')">Đăng nhập</button><button id="tabRegister" type="button" onclick="showAuthTab('register')">Đăng ký</button></div>
-  <div id="authMessage" class="alert d-none py-2 small"></div>
-  <form id="loginForm" onsubmit="loginAccount(event)">
-   <div class="mb-3"><label class="form-label">Tên đăng nhập</label><input id="loginUsername" class="form-control" autocomplete="username" required></div>
-   <div class="mb-3"><label class="form-label">Mật khẩu</label><input id="loginPassword" type="password" class="form-control" autocomplete="current-password" required></div>
-   <button class="btn btn-main w-100 py-2 fw-bold" type="submit">ĐĂNG NHẬP</button>
-  </form>
-  <form id="registerForm" class="d-none" onsubmit="registerAccount(event)">
-   <div class="mb-2"><label class="form-label">Họ và tên</label><input id="regFullName" class="form-control" required></div>
-   <div class="mb-2"><label class="form-label">Tên đăng nhập</label><input id="regUsername" class="form-control" minlength="3" autocomplete="username" required><div class="small-note">Ít nhất 3 ký tự, không dùng khoảng trắng.</div></div>
-   <div class="mb-2"><label class="form-label">Mật khẩu</label><input id="regPassword" type="password" class="form-control" minlength="6" autocomplete="new-password" required></div>
-   <div class="mb-2"><label class="form-label">Nhập lại mật khẩu</label><input id="regPassword2" type="password" class="form-control" minlength="6" autocomplete="new-password" required></div>
-   <button id="registerSubmitBtn" class="btn btn-success w-100 py-2 fw-bold" type="submit">ĐĂNG KÝ TÀI KHOẢN</button>
-  </form>
-  <div class="small-note mt-3 text-center">Đăng ký tài khoản trực tiếp, không yêu cầu mã OTP.</div>
- </div>
-</div>
 <header class="app-header">
  <div class="container-fluid px-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -118,7 +96,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
     <div class="mt-2 p-2 border rounded bg-light"><div class="fw-bold text-primary mb-2">TRÁI TUYẾN</div><div class="row g-2"><div class="col-6"><label class="form-label">Chiều dài trái tuyến (m)</label><input type="number" step="0.01" min="0" class="form-control" id="leftLength" value="0"></div><div class="col-6"><label class="form-label">Số hố thu trái tuyến</label><input type="number" step="1" min="0" class="form-control" id="leftPits" value="0"></div></div></div>
     <div class="small-note mt-1">Tổng chiều dài và tổng số hố thu được tự động cộng từ hai bên tuyến để tính khối lượng và dự toán.</div>
     <div class="mt-2"><label class="form-label">Quy cách mương hiện trạng</label><div class="input-group"><input class="form-control" id="spec" list="specOptions" placeholder="Chọn gợi ý hoặc nhập theo thực tế"><button class="btn btn-outline-secondary" type="button" onclick="applyRouteDefaultSpec()">Lấy mặc định</button></div><datalist id="specOptions"><option value="Mương BTCT đúc sẵn, có tấm đan"><option value="Mương BTCT đổ tại chỗ, có tấm đan"><option value="Mương xây gạch, có tấm đan BTCT"><option value="Mương hở BTCT"><option value="Rãnh xây có nắp đan"><option value="Cống tròn BTCT"><option value="Cống hộp BTCT"></datalist><div class="small-note mt-1">Tự điền theo quy cách mặc định của tuyến hoặc số liệu đã khảo sát; vẫn có thể sửa tự do.</div></div>
-    <div class="row g-2 mt-1"><div class="col-6"><label class="form-label">Chiều rộng mương (m)</label><input type="number" step="0.01" min="0.01" class="form-control" id="width" value="0.5" required></div><div class="col-6"><label class="form-label">Bùn lắng dày (m)</label><input type="number" step="0.01" min="0" class="form-control" id="mudDepth" value="0"></div></div>
+    <div class="row g-2 mt-1"><div class="col-md-4"><label class="form-label">Chiều rộng mương (m)</label><input type="number" step="0.01" min="0.01" class="form-control" id="width" value="0.5" required></div><div class="col-md-4"><label class="form-label">Chiều cao mương (m)</label><input type="number" step="0.01" min="0" class="form-control" id="height" value="0" placeholder="Nhập chiều cao thực tế"></div><div class="col-md-4"><label class="form-label">Bùn lắng dày (m)</label><input type="number" step="0.01" min="0" class="form-control" id="mudDepth" value="0"></div></div>
     <div class="row g-2 mt-1"><div class="col-12"><label class="form-label">Mức độ</label><select class="form-select" id="level"><option>Bình thường</option><option>Nghiêm trọng</option><option>Rất nghiêm trọng</option></select></div></div>
     <div class="mt-2"><label class="form-label">Ghi chú hiện trường</label><textarea class="form-control" id="notes" rows="2" placeholder="Vị trí tắc, hư hỏng, kiến nghị..."></textarea></div>
     <div class="mt-2"><label class="form-label">Ảnh hiện trạng</label><input type="file" class="form-control" id="photo" accept="image/*" capture="environment"><div id="photoPreviewWrap" class="mt-2 d-none"><div class="d-flex align-items-center gap-2 flex-wrap"><img id="photoPreview" class="thumb" alt="Ảnh xem trước"><button class="btn btn-sm btn-outline-danger" type="button" onclick="removeCurrentPhoto()">Xóa ảnh</button></div></div><div id="photoStatus" class="small-note mt-1">Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.</div></div>
@@ -128,7 +106,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 
   <div class="col-xl-8 col-lg-7"><div class="card p-3 p-md-4">
    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><h5 class="section-title mb-0">Dữ liệu khảo sát</h5><div class="no-print d-flex gap-2"><button class="btn btn-success btn-sm fw-bold" onclick="exportExcel()">Xuất Excel</button><button class="btn btn-outline-danger btn-sm" onclick="clearAll()">Xóa toàn bộ</button></div></div>
-   <div class="table-responsive"><table class="table table-bordered table-hover align-middle small mb-0"><thead class="table-light"><tr><th>STT</th><th>Tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Ngày</th><th>Ảnh</th><th>Thông số</th><th>Chiều dài phải (m)</th><th>Hố thu phải</th><th>Chiều dài trái (m)</th><th>Hố thu trái</th><th>Mức độ</th><th>Bùn (m³)</th><th>Tổng hố thu</th><th>Dự toán</th><th class="no-print">Thao tác</th></tr></thead><tbody id="tableBody"></tbody></table></div>
+   <div class="table-responsive"><table class="table table-bordered table-hover align-middle small mb-0"><thead class="table-light"><tr><th>STT</th><th>Tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Ngày</th><th>Ảnh</th><th>Thông số</th><th>Cao mương (m)</th><th>Chiều dài phải (m)</th><th>Hố thu phải</th><th>Chiều dài trái (m)</th><th>Hố thu trái</th><th>Mức độ</th><th>Bùn (m³)</th><th>Tổng hố thu</th><th>Dự toán</th><th class="no-print">Thao tác</th></tr></thead><tbody id="tableBody"></tbody></table></div>
   </div></div>
  </div>
 </main>
@@ -140,14 +118,43 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 <div class="modal fade" id="imgModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Ảnh hiện trạng</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body text-center"><img id="modalImage" class="img-fluid rounded"></div></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-<div class="modal fade" id="cloudModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
-<div class="modal-header"><div><h5 class="modal-title">Đồng bộ Cloud & chia sẻ nhiều thiết bị</h5><div class="small text-muted">Dùng Firebase để đồng bộ PC, iPhone, Samsung. Chỉ người được cấp quyền mới truy cập workspace.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal fade" id="cloudModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+<div class="modal-header"><div><h5 class="modal-title">Cloud dùng chung 1 tài khoản & phân quyền thiết bị</h5><div class="small text-muted">Toàn bộ thiết bị dùng tài khoản Firebase duy nhất <b>binhhu19802014@gmail.com</b>. Máy chính cấp quyền cho từng thiết bị.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div>
 <div class="modal-body">
- <div id="cloudAlert" class="alert alert-info py-2 small">Chưa kết nối Cloud. Phần mềm vẫn dùng dữ liệu cục bộ bình thường.</div>
- <div class="row g-2"><div class="col-md-6"><label class="form-label">Mã Workspace</label><input id="cloudWorkspace" class="form-control" placeholder="VD: CUALO-2026"></div><div class="col-md-6"><label class="form-label">Email tài khoản Cloud</label><input id="cloudEmail" type="email" class="form-control" placeholder="email@donvi.vn"></div><div class="col-md-6"><label class="form-label">Mật khẩu Cloud</label><input id="cloudPassword" type="password" class="form-control" minlength="6"></div><div class="col-md-6 d-flex align-items-end gap-2 mobile-stack"><button class="btn btn-success flex-fill" type="button" onclick="cloudRegister()">Đăng ký Cloud</button><button class="btn btn-primary flex-fill" type="button" onclick="cloudConnect()">Kết nối</button><button class="btn btn-outline-danger" type="button" onclick="cloudDisconnect()">Ngắt</button></div></div>
- <hr><div class="row g-2"><div class="col-12"><label class="form-label">Firebase Config (JSON)</label><textarea id="firebaseConfigInput" class="form-control" rows="5" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea><div class="small-note mt-1">Nếu website đã được triển khai chính thức, cấu hình Firebase được dùng chung và ô này sẽ bị khóa. Chế độ nhập tay chỉ dùng khi chạy file HTML cục bộ.</div></div><div class="col-12"><button class="btn btn-outline-secondary" type="button" onclick="saveFirebaseConfig()">Lưu cấu hình Firebase</button></div></div>
- <hr><div id="permissionPanel" class="d-none"><h6 class="fw-bold">Cấp quyền người dùng</h6><div class="input-group"><input id="allowEmail" type="email" class="form-control" placeholder="Email được phép sử dụng"><button class="btn btn-warning" onclick="grantCloudAccess()">Cấp quyền</button></div><div class="small-note mt-2">Chỉ chủ Workspace mới cấp quyền. Người được cấp quyền đăng ký/đăng nhập Cloud bằng đúng email này.</div><div id="allowedList" class="mt-2 small"></div></div>
- <hr><details><summary class="fw-bold">Thiết lập lần đầu để chia sẻ an toàn</summary><div class="small mt-2"><ol><li>Tạo Firebase Project và bật <b>Authentication → Email/Password</b>, <b>Cloud Firestore</b>.</li><li>Tạo Web app, dán Firebase Config ở trên.</li><li>Đăng ký tài khoản Cloud bằng email của người quản trị, nhập Mã Workspace rồi Kết nối. Workspace mới sẽ lấy tài khoản đầu tiên làm chủ.</li><li>Chủ Workspace nhập email cán bộ tại mục Cấp quyền. Mỗi người dùng đăng ký Cloud trên thiết bị của họ bằng đúng email đã cấp.</li><li>Đưa file HTML lên HTTPS hosting (Firebase Hosting hoặc máy chủ đơn vị) để iPhone/Samsung mở bằng Safari/Chrome; có thể “Add to Home Screen”.</li></ol><div class="alert alert-warning py-2">Để quyền truy cập thực sự an toàn, cần cấu hình Firestore Security Rules theo mô hình owner/member. Bản HTML không thể tự tạo quy tắc bảo mật cho dự án Firebase.</div></div></details>
+ <div id="cloudAlert" class="alert alert-info py-2 small">Chưa kết nối Cloud. Thiết bị chưa được xác định quyền.</div>
+ <div class="row g-2">
+   <div class="col-md-3"><label class="form-label">Workspace</label><input id="cloudWorkspace" class="form-control" readonly></div>
+   <div class="col-md-4"><label class="form-label">Tài khoản dùng chung</label><input id="cloudEmail" type="email" class="form-control" value="binhhu19802014@gmail.com" readonly></div>
+   <div class="col-md-3"><label class="form-label">Mật khẩu Firebase</label><input id="cloudPassword" type="password" class="form-control" minlength="6" placeholder="Nhập mật khẩu tài khoản chính"></div>
+   <div class="col-md-2 d-flex align-items-end gap-2"><button class="btn btn-primary flex-fill" type="button" onclick="cloudConnect()">Kết nối</button><button class="btn btn-outline-danger" type="button" onclick="cloudDisconnect()">Ngắt</button></div>
+ </div>
+ <div class="row g-2 mt-2">
+   <div class="col-md-5"><label class="form-label">Tên thiết bị</label><input id="deviceNameInput" class="form-control" placeholder="VD: Máy khảo sát số 01" onchange="saveDeviceName()"></div>
+   <div class="col-md-5"><label class="form-label">Mã thiết bị</label><input id="deviceIdInput" class="form-control font-monospace" readonly></div>
+   <div class="col-md-2 d-flex align-items-end"><button id="requestAccessBtn" class="btn btn-warning w-100 d-none" type="button" onclick="requestDeviceAccess()">Yêu cầu cấp quyền</button></div>
+ </div>
+ <div id="deviceAccessStatus" class="alert alert-secondary py-2 small mt-2 mb-0">Trạng thái thiết bị: chưa kết nối.</div>
+
+ <hr>
+ <div id="permissionPanel" class="d-none">
+   <h6 class="fw-bold">Quản trị thiết bị – chỉ máy chính</h6>
+   <div class="small text-muted mb-2">Máy chính duyệt thiết bị. Thiết bị được duyệt có thể khảo sát và chỉ được sửa mỗi tuyến 1 lần; sau đó tuyến tự khóa.</div>
+   <div class="row g-3">
+     <div class="col-lg-6"><div class="border rounded p-2"><b>Thiết bị đang chờ cấp quyền</b><div id="pendingDeviceList" class="mt-2 small"></div></div></div>
+     <div class="col-lg-6"><div class="border rounded p-2"><b>Thiết bị đã được cấp quyền</b><div id="authorizedDeviceList" class="mt-2 small"></div></div></div>
+   </div>
+ </div>
+
+ <hr><details><summary class="fw-bold">Cách sử dụng phân quyền</summary><div class="small mt-2">
+   <ol>
+     <li>Trên <b>máy chính</b>, kết nối Firebase bằng tài khoản <b>binhhu19802014@gmail.com</b>. Nếu Workspace chưa có máy chính, xác nhận đặt máy này làm máy chính.</li>
+     <li>Trên máy khác, cũng kết nối bằng cùng tài khoản Firebase; phần mềm tự tạo Mã thiết bị và gửi yêu cầu cấp quyền.</li>
+     <li>Máy chính mở Cloud → duyệt thiết bị. Sau khi duyệt, máy đó được dùng phần mềm.</li>
+     <li>Trong Quản lý tuyến, thiết bị phụ chỉ có nút <b>Sửa</b>, không có <b>Xóa</b>. Sau khi Lưu/cập nhật 1 lần, tuyến tự khóa với tất cả thiết bị phụ.</li>
+     <li>Máy chính có thể bấm <b>Mở cho máy khác sửa</b> để cho phép đúng 1 lượt sửa tiếp theo. Máy chính luôn được sửa/xóa không giới hạn.</li>
+   </ol>
+   <div class="alert alert-warning py-2 mb-0"><b>Lưu ý:</b> do yêu cầu dùng chung một tài khoản Firebase cho mọi thiết bị, khóa theo thiết bị được phần mềm thực thi ở tầng ứng dụng. Nếu cần bảo mật thiết bị ở cấp máy chủ tuyệt đối, phải dùng tài khoản Firebase riêng cho từng người hoặc backend cấp token riêng.</div>
+ </div></details>
 </div></div></div></div>
 
 <script>
@@ -200,50 +207,55 @@ let routes=[];
 const STORE='CUALO_DRAINAGE_SURVEY_V4', SETTINGS='CUL0_DRAINAGE_SETTINGS_V2';
 const LEGACY_STORES=['CUL0_DRAINAGE_SURVEY_V2','SURVEY_DATA_STORE','CUALO_DRAINAGE_SURVEY_V3'];
 let data=[]; let currentImage=''; let pendingImagePromise=null; let photoChanged=false; let lastSavedRouteId=null;
-const ACCOUNTS_STORE='CUALO_LOCAL_ACCOUNTS_V1', SESSION_STORE='CUALO_LOCAL_SESSION_V1';
-let currentUser=null;
-const CLOUD_CFG_STORE='CUALO_FIREBASE_CONFIG_V1', CLOUD_WS_STORE='CUALO_CLOUD_WORKSPACE_V1';
-let cloudDb=null,cloudAuth=null,cloudUser=null,cloudWorkspace='',cloudUnsub=null,cloudPhotoUnsub=null,cloudApplying=false,cloudPushTimer=null,cloudMeta=null;
-const $=id=>document.getElementById(id);
-const money=n=>(Number(n)||0).toLocaleString('vi-VN')+' đ';
-function safeParse(s,fallback){try{return JSON.parse(s)}catch{return fallback}}
-function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function today(){return new Date().toISOString().slice(0,10)}
-function formatDateVN(value){
- if(!value) return '';
- const s=String(value).trim();
- let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return `${m[3]}/${m[2]}/${m[1]}`;
- m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/); if(m) return `${String(m[1]).padStart(2,'0')}/${String(m[2]).padStart(2,'0')}/${m[3]}`;
- return s;
+const MASTER_EMAIL='binhhu19802014@gmail.com';
+const DEVICE_ID_STORE='CUALO_DEVICE_ID_V1', DEVICE_NAME_STORE='CUALO_DEVICE_NAME_V1';
+let deviceId='',deviceName='',currentUser=null;
+function makeDeviceId(){
+ if(window.crypto?.randomUUID)return crypto.randomUUID();
+ return 'DEV-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
 }
-function getAccounts(){const x=safeParse(localStorage.getItem(ACCOUNTS_STORE),[]);return Array.isArray(x)?x:[]}
-function saveAccounts(arr){localStorage.setItem(ACCOUNTS_STORE,JSON.stringify(arr))}
-async function hashPassword(text){
- try{const b=new TextEncoder().encode(text);const h=await crypto.subtle.digest('SHA-256',b);return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join('')}catch{return btoa(unescape(encodeURIComponent(text)))}
+function initDeviceIdentity(){
+ deviceId=localStorage.getItem(DEVICE_ID_STORE)||makeDeviceId();
+ localStorage.setItem(DEVICE_ID_STORE,deviceId);
+ deviceName=localStorage.getItem(DEVICE_NAME_STORE)||('Thiết bị '+deviceId.slice(0,8));
+ localStorage.setItem(DEVICE_NAME_STORE,deviceName);
+ currentUser={id:deviceId,fullName:deviceName,username:deviceId,role:'Thiết bị'};
+ if($('deviceIdInput'))$('deviceIdInput').value=deviceId;
+ if($('deviceNameInput'))$('deviceNameInput').value=deviceName;
+ updateDeviceAccessUI();
 }
-function showAuthMessage(msg,type='danger'){const el=$('authMessage');el.className=`alert alert-${type} py-2 small`;el.textContent=msg;el.classList.remove('d-none')}
-function showAuthTab(which){const login=which==='login';$('loginForm').classList.toggle('d-none',!login);$('registerForm').classList.toggle('d-none',login);$('tabLogin').classList.toggle('active',login);$('tabRegister').classList.toggle('active',!login);$('authMessage').classList.add('d-none')}
-async function registerAccount(e){
- e.preventDefault();
- const fullName=$('regFullName').value.trim();
- const username=$('regUsername').value.trim().toLowerCase();
- const p1=$('regPassword').value,p2=$('regPassword2').value;
- if(!fullName)return showAuthMessage('Vui lòng nhập họ và tên.');
- if(!/^[a-zA-Z0-9._-]{3,30}$/.test(username))return showAuthMessage('Tên đăng nhập chỉ dùng chữ, số, dấu chấm, gạch dưới hoặc gạch ngang; từ 3–30 ký tự.');
- if(p1.length<6)return showAuthMessage('Mật khẩu phải có ít nhất 6 ký tự.');
- if(p1!==p2)return showAuthMessage('Hai lần nhập mật khẩu chưa khớp.');
- const arr=getAccounts();
- if(arr.some(a=>a.username===username))return showAuthMessage('Tên đăng nhập này đã tồn tại.');
- const passwordHash=await hashPassword(p1);
- arr.push({id:Date.now(),fullName,username,passwordHash,createdAt:new Date().toISOString(),role:arr.length?'Người dùng':'Quản trị'});
- saveAccounts(arr);
- $('loginUsername').value=username;$('loginPassword').value='';
- showAuthTab('login');showAuthMessage('Đăng ký thành công. Vui lòng đăng nhập.','success');
+function saveDeviceName(){
+ const v=String($('deviceNameInput')?.value||'').trim();
+ if(v){deviceName=v;localStorage.setItem(DEVICE_NAME_STORE,v);currentUser.fullName=v;}
+ updateDeviceAccessUI();
 }
-async function loginAccount(e){e.preventDefault();const username=$('loginUsername').value.trim().toLowerCase(),password=$('loginPassword').value;const acc=getAccounts().find(a=>a.username===username);if(!acc)return showAuthMessage('Tên đăng nhập hoặc mật khẩu không đúng.');const h=await hashPassword(password);if(h!==acc.passwordHash)return showAuthMessage('Tên đăng nhập hoặc mật khẩu không đúng.');currentUser={id:acc.id,fullName:acc.fullName,username:acc.username,role:acc.role};sessionStorage.setItem(SESSION_STORE,JSON.stringify(currentUser));enterApp()}
-function enterApp(){if(!currentUser)return;$('authScreen').style.display='none';$('currentUserLabel').textContent=`${currentUser.fullName} (${currentUser.role})`;if(!window.__appInitialized){window.__appInitialized=true;initApp();}}
-function logoutAccount(){sessionStorage.removeItem(SESSION_STORE);currentUser=null;$('authScreen').style.display='flex';$('loginPassword').value='';showAuthTab('login')}
-function initAuth(){const ss=safeParse(sessionStorage.getItem(SESSION_STORE),null);if(ss&&ss.username){currentUser=ss;enterApp();return;}const accs=getAccounts();showAuthTab(accs.length?'login':'register');$('authScreen').style.display='flex';}
+function getUpdateActor(){return isMasterDevice()?`MÁY CHÍNH • ${deviceName}`:`${deviceName} • ${deviceId.slice(0,8)}`}
+function isMasterDevice(){return !!(cloudMeta&&cloudMeta.ownerDeviceId===deviceId&&cloudUser?.email?.toLowerCase()===MASTER_EMAIL)}
+function authorizedDeviceEntry(){return (cloudMeta?.authorizedDevices||[]).find(d=>String(d.id)===String(deviceId))}
+function isAuthorizedDevice(){return isMasterDevice()||!!authorizedDeviceEntry()}
+function ensureDeviceCanUse(action='thao tác'){
+ if(!cloudDb||!cloudUser||!cloudWorkspace){alert(`Chưa kết nối Cloud. Vui lòng kết nối tài khoản ${MASTER_EMAIL} trước khi ${action}.`);return false;}
+ if(!isAuthorizedDevice()){alert('Thiết bị này chưa được máy chính cấp quyền sử dụng. Hãy gửi yêu cầu cấp quyền.');return false;}
+ return true;
+}
+function ensureMaster(action='thao tác này'){
+ if(!isMasterDevice()){alert(`Chỉ máy chính được phép ${action}.`);return false;}
+ return true;
+}
+function routeLockInfo(id){return cloudMeta?.routeLocks?.[String(id)]||null}
+function updateDeviceAccessUI(){
+ const role=isMasterDevice()?'MÁY CHÍNH':isAuthorizedDevice()?'ĐÃ ĐƯỢC CẤP QUYỀN':'CHƯA ĐƯỢC CẤP QUYỀN';
+ const label=$('deviceRoleLabel');if(label)label.textContent=cloudUser?`${role} • ${deviceName}`:`Chưa kết nối Cloud • ${deviceName||'Thiết bị'}`;
+ const st=$('deviceAccessStatus');if(st){
+   const cls=isMasterDevice()?'success':isAuthorizedDevice()?'primary':cloudUser?'warning':'secondary';
+   st.className=`alert alert-${cls} py-2 small mt-2 mb-0`;
+   st.textContent=`Trạng thái thiết bị: ${role}${cloudUser?` • ${deviceName} • ${deviceId.slice(0,12)}`:''}`;
+ }
+ const req=$('requestAccessBtn');if(req)req.classList.toggle('d-none',!cloudUser||isAuthorizedDevice()||isMasterDevice());
+ const surveyBtn=document.querySelector('#surveyForm button[type="submit"]');
+ if(surveyBtn){surveyBtn.disabled=!!cloudUser&&!isAuthorizedDevice();surveyBtn.title=surveyBtn.disabled?'Thiết bị chưa được cấp quyền':'';}
+ renderRouteTable();
+}
 
 function setSaveStatus(msg,type='light'){
  const el=$('saveStatus'); if(!el) return;
@@ -345,13 +357,13 @@ function loadRoute(){
  $('routeStart').textContent=r.dau;$('routeEnd').textContent=r.cuoi;$('routeLength').textContent=r.tong;
  const existing=data.find(x=>String(x.idTuyen)===String(r.id));
  if(existing){
-   $('editId').value=String(r.id);$('surveyDate').value=existing.ngay||today();$('surveyStart').value=existing.diemDau||r.dau||'';$('surveyEnd').value=existing.diemCuoi||r.cuoi||'';$('rightLength').value=existing.chieuDaiPhai??existing.chieuDai??r.tong;$('leftLength').value=existing.chieuDaiTrai??0;$('spec').value=existing.quyCach||r.defaultSpec||'';$('width').value=existing.rong??0.5;$('mudDepth').value=existing.dayBun??'';$('rightPits').value=existing.hoThuPhai??existing.hoThu??0;$('leftPits').value=existing.hoThuTrai??0;$('level').value=existing.mucDo||'Bình thường';$('notes').value=existing.ghiChu||'';currentImage=existing.hinhAnh||'';
+   $('editId').value=String(r.id);$('surveyDate').value=existing.ngay||today();$('surveyStart').value=existing.diemDau||r.dau||'';$('surveyEnd').value=existing.diemCuoi||r.cuoi||'';$('rightLength').value=existing.chieuDaiPhai??existing.chieuDai??r.tong;$('leftLength').value=existing.chieuDaiTrai??0;$('spec').value=existing.quyCach||r.defaultSpec||'';$('width').value=existing.rong??0.5;$('height').value=existing.cao??0;$('mudDepth').value=existing.dayBun??'';$('rightPits').value=existing.hoThuPhai??existing.hoThu??0;$('leftPits').value=existing.hoThuTrai??0;$('level').value=existing.mucDo||'Bình thường';$('notes').value=existing.ghiChu||'';currentImage=existing.hinhAnh||'';
    if($('photo'))$('photo').value=''; pendingImagePromise=null; photoChanged=false;
    if(currentImage){$('photoPreview').src=currentImage;$('photoPreviewWrap').classList.remove('d-none');if($('photoStatus'))$('photoStatus').textContent='Đang dùng ảnh đã lưu. Chọn ảnh mới để thay thế.';}
    else{$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Bản ghi này chưa có ảnh.';}
    $('formTitle').textContent='Cập nhật khảo sát - '+r.name;$('cancelEdit').classList.remove('d-none');
  }else if(!$('editId').value){
-   $('surveyStart').value=r.dau||'';$('surveyEnd').value=r.cuoi||'';$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('spec').value=r.defaultSpec||'';$('surveyDate').value=today();$('width').value=.5;$('mudDepth').value='';$('rightPits').value=0;$('leftPits').value=0;$('level').value='Bình thường';$('notes').value='';currentImage='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');
+   $('surveyStart').value=r.dau||'';$('surveyEnd').value=r.cuoi||'';$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('spec').value=r.defaultSpec||'';$('surveyDate').value=today();$('width').value=.5;$('height').value=0;$('mudDepth').value='';$('rightPits').value=0;$('leftPits').value=0;$('level').value='Bình thường';$('notes').value='';currentImage='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');
  }
 }
 function applyRouteDefaultSpec(){const r=routes.find(x=>String(x.id)===String($('selectRoute').value));if(!r)return alert('Vui lòng chọn tuyến đường trước.');$('spec').value=r.defaultSpec||'';if(!r.defaultSpec)alert('Tuyến này chưa có quy cách mặc định. Bạn có thể nhập trực tiếp hoặc vào Quản lý tuyến để thiết lập.');}
@@ -361,12 +373,100 @@ function normalizeRoutes(){routes=routes.map((r,i)=>({id:Number(r.id)||i+1,name:
 function persistRoutes(){try{localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));scheduleCloudPush()}catch(e){alert('Không thể lưu danh mục tuyến đường.')}}
 function refreshRouteSelect(selected){const sel=$('selectRoute');const cur=selected??sel.value;sel.innerHTML='<option value="">-- Chọn tuyến --</option>';routes.slice().sort((a,b)=>a.id-b.id).forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=`${r.id}. ${r.name} (${Number(r.tong).toLocaleString('vi-VN')} m)`;sel.appendChild(o)});if(cur&&routes.some(r=>String(r.id)===String(cur)))sel.value=cur;loadRoute();}
 function nextRouteId(){return routes.length?Math.max(...routes.map(r=>Number(r.id)||0))+1:1;}
-function saveRoute(){const editId=Number($('routeEditId').value)||null;const id=Number($('routeIdInput').value)||nextRouteId();const name=$('routeNameInput').value.trim().toUpperCase();const dau=$('routeStartInput').value.trim();const cuoi=$('routeEndInput').value.trim();const tong=Number($('routeLengthInput').value);const note=$('routeNoteInput').value.trim();const defaultSpec=$('routeSpecInput').value.trim();if(!name)return alert('Vui lòng nhập tên tuyến đường.');if(!Number.isFinite(tong)||tong<0)return alert('Chiều dài tuyến không hợp lệ.');const duplicate=routes.find(r=>r.id===id&&r.id!==editId);if(duplicate)return alert('Mã tuyến đã tồn tại. Vui lòng chọn mã khác.');if(editId!==null){const idx=routes.findIndex(r=>r.id===editId);if(idx<0)return;const old=routes[idx];routes[idx]={id,name,dau,cuoi,tong,note,defaultSpec};data.forEach(x=>{if(String(x.idTuyen)===String(old.id)){x.idTuyen=id;x.ten=name;x.diemDau=dau;x.diemCuoi=cuoi;}});persist();}else{routes.push({id,name,dau,cuoi,tong,note,defaultSpec});}normalizeRoutes();persistRoutes();refreshRouteSelect(id);resetRouteForm();renderRouteTable();render();}
-function editRoute(id){const r=routes.find(x=>x.id===id);if(!r)return;$('routeEditId').value=r.id;$('routeIdInput').value=r.id;$('routeNameInput').value=r.name;$('routeStartInput').value=r.dau;$('routeEndInput').value=r.cuoi;$('routeLengthInput').value=r.tong;$('routeNoteInput').value=r.note||'';$('routeSpecInput').value=r.defaultSpec||'';}
-function resetRouteForm(){$('routeEditId').value='';$('routeIdInput').value='';$('routeNameInput').value='';$('routeStartInput').value='';$('routeEndInput').value='';$('routeLengthInput').value='';$('routeNoteInput').value='';$('routeSpecInput').value='';}
-function deleteRoute(id){const linked=data.filter(x=>String(x.idTuyen)===String(id)).length;const msg=linked?`Tuyến này đang có ${linked} bản ghi khảo sát. Xóa tuyến sẽ KHÔNG xóa bản ghi khảo sát cũ nhưng tuyến sẽ không còn trong danh mục. Tiếp tục?`:'Xóa tuyến này khỏi danh mục?';if(!confirm(msg))return;routes=routes.filter(r=>r.id!==id);persistRoutes();refreshRouteSelect();renderRouteTable();render();}
-function renderRouteTable(){const q=($('routeSearch')?.value||'').toLowerCase().trim();const rows=routes.filter(r=>!q||[r.name,r.dau,r.cuoi,r.note].join(' ').toLowerCase().includes(q)).sort((a,b)=>a.id-b.id);if($('routeCount'))$('routeCount').textContent=routes.length;const tb=$('routeTableBody');if(!tb)return;tb.innerHTML=rows.length?rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.id}</td><td class="fw-bold">${escapeHtml(r.name)}</td><td>${escapeHtml(r.dau)}</td><td>${escapeHtml(r.cuoi)}</td><td>${Number(r.tong).toLocaleString('vi-VN')}</td><td>${escapeHtml(r.note||'')}</td><td>${escapeHtml(r.defaultSpec||'')}</td><td class="text-nowrap"><button class="btn btn-outline-primary btn-sm" onclick="editRoute(${r.id})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRoute(${r.id})">Xóa</button></td></tr>`).join(''):'<tr><td colspan="9" class="text-center text-muted py-3">Không có tuyến phù hợp.</td></tr>';}
-function importRoutesExcel(e){const f=e.target.files[0];if(!f)return;if(typeof XLSX==='undefined'){alert('Không tải được thư viện Excel.');e.target.value='';return;}const rd=new FileReader();rd.onload=()=>{try{const wb=XLSX.read(rd.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const arr=XLSX.utils.sheet_to_json(ws,{defval:''});if(!arr.length)throw new Error('File không có dữ liệu');const pick=(o,names)=>{for(const n of names){if(Object.prototype.hasOwnProperty.call(o,n))return o[n];const k=Object.keys(o).find(k=>String(k).trim().toLowerCase()===n.toLowerCase());if(k)return o[k]}return ''};const imported=arr.map((o,i)=>({id:Number(pick(o,['Mã tuyến','Ma tuyen','ID','STT']))||nextRouteId()+i,name:String(pick(o,['Tên tuyến','Tên tuyến đường','Ten tuyen','Tên đường'])||'').trim().toUpperCase(),dau:String(pick(o,['Điểm đầu','Diem dau'])||'').trim(),cuoi:String(pick(o,['Điểm cuối','Diem cuoi'])||'').trim(),tong:Number(pick(o,['Chiều dài (m)','Chiều dài','Chieu dai','Tổng chiều dài']))||0,note:String(pick(o,['Ghi chú','Ghi chu'])||'').trim(),defaultSpec:String(pick(o,['Quy cách mương mặc định','Quy cách','Quy cach'])||'').trim()})).filter(r=>r.name);if(!imported.length)throw new Error('Không nhận diện được cột Tên tuyến');let added=0,updated=0;for(const r of imported){const idx=routes.findIndex(x=>x.id===r.id||x.name.toUpperCase()===r.name.toUpperCase());if(idx>=0){const old=routes[idx];routes[idx]={...old,...r,id:old.id};data.forEach(x=>{if(String(x.idTuyen)===String(old.id)){x.ten=r.name;x.diemDau=r.dau;x.diemCuoi=r.cuoi;}});updated++;}else{r.id=routes.some(x=>x.id===r.id)?nextRouteId():r.id;routes.push(r);added++;}}normalizeRoutes();persistRoutes();persist();refreshRouteSelect();renderRouteTable();render();alert(`Đã nhập danh mục: thêm ${added} tuyến, cập nhật ${updated} tuyến.`);}catch(err){alert('Không thể nhập danh mục tuyến: '+err.message);}e.target.value='';};rd.readAsArrayBuffer(f);}
+async function refreshCloudMeta(){
+ if(!cloudDb||!cloudWorkspace)return;
+ const s=await cloudDb.doc(`${cloudPath()}/config/meta`).get();
+ if(s.exists){cloudMeta=s.data();updateDeviceAccessUI();renderPermissionPanel();renderRouteTable();}
+}
+async function claimRouteEditLock(id){
+ if(isMasterDevice())return true;
+ if(!ensureDeviceCanUse('cập nhật tuyến'))return false;
+ const ref=cloudDb.doc(`${cloudPath()}/config/meta`);
+ try{
+   await cloudDb.runTransaction(async tx=>{
+     const snap=await tx.get(ref);if(!snap.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
+     const m=snap.data()||{};
+     const auth=(m.authorizedDevices||[]).some(d=>String(d.id)===String(deviceId));
+     if(!auth)throw new Error('Thiết bị chưa được cấp quyền.');
+     const locks={...(m.routeLocks||{})};const cur=locks[String(id)];
+     if(cur?.locked)throw new Error(`Tuyến đã khóa sau lần cập nhật trước bởi ${cur.byDeviceName||'thiết bị khác'}.`);
+     locks[String(id)]={locked:true,byDeviceId:deviceId,byDeviceName:deviceName,lockedAt:new Date().toISOString()};
+     tx.update(ref,{routeLocks:locks});
+   });
+   await refreshCloudMeta();return true;
+ }catch(e){alert('Không thể cập nhật tuyến: '+e.message);return false;}
+}
+async function unlockRouteForDevices(id){
+ if(!ensureMaster('mở khóa tuyến'))return;
+ const locks={...(cloudMeta.routeLocks||{})};
+ locks[String(id)]={locked:false,unlockedAt:new Date().toISOString(),unlockedByDeviceId:deviceId};
+ cloudMeta.routeLocks=locks;
+ await cloudDb.doc(`${cloudPath()}/config/meta`).set({routeLocks:locks},{merge:true});
+ renderRouteTable();renderPermissionPanel();cloudSetStatus('Đã mở tuyến cho thiết bị phụ sửa đúng 1 lần.','success');
+}
+async function saveRoute(){
+ if(!ensureDeviceCanUse('lưu/cập nhật tuyến'))return;
+ const editId=Number($('routeEditId').value)||null;
+ if(editId===null&&!isMasterDevice())return alert('Thiết bị phụ chỉ được sửa tuyến có sẵn, không được tạo tuyến mới.');
+ const id=Number($('routeIdInput').value)||nextRouteId();
+ const name=$('routeNameInput').value.trim().toUpperCase();
+ const dau=$('routeStartInput').value.trim(),cuoi=$('routeEndInput').value.trim();
+ const tong=Number($('routeLengthInput').value),note=$('routeNoteInput').value.trim(),defaultSpec=$('routeSpecInput').value.trim();
+ if(!name)return alert('Vui lòng nhập tên tuyến đường.');
+ if(!Number.isFinite(tong)||tong<0)return alert('Chiều dài tuyến không hợp lệ.');
+ const duplicate=routes.find(r=>r.id===id&&r.id!==editId);if(duplicate)return alert('Mã tuyến đã tồn tại. Vui lòng chọn mã khác.');
+ if(editId!==null&&!isMasterDevice()){
+   const ok=await claimRouteEditLock(editId);if(!ok)return;
+ }
+ if(editId!==null){
+   const idx=routes.findIndex(r=>r.id===editId);if(idx<0)return;
+   const old=routes[idx];routes[idx]={id,name,dau,cuoi,tong,note,defaultSpec};
+   data.forEach(x=>{if(String(x.idTuyen)===String(old.id)){x.idTuyen=id;x.ten=name;x.diemDau=dau;x.diemCuoi=cuoi;}});
+   persist();
+ }else routes.push({id,name,dau,cuoi,tong,note,defaultSpec});
+ normalizeRoutes();persistRoutes();await cloudPushState();refreshRouteSelect(id);resetRouteForm();renderRouteTable();render();
+ alert(isMasterDevice()?'Đã cập nhật tuyến. Máy chính không bị giới hạn số lần sửa.':'Đã cập nhật tuyến thành công. Tuyến đã tự động khóa với tất cả thiết bị phụ.');
+}
+function editRoute(id){
+ if(!ensureDeviceCanUse('sửa tuyến'))return;
+ const r=routes.find(x=>x.id===id);if(!r)return;
+ const lock=routeLockInfo(id);
+ if(!isMasterDevice()&&lock?.locked)return alert(`Tuyến này đã khóa sau khi được cập nhật bởi ${lock.byDeviceName||'thiết bị khác'}. Chỉ máy chính mới có thể mở lại.`);
+ $('routeEditId').value=r.id;$('routeIdInput').value=r.id;$('routeNameInput').value=r.name;$('routeStartInput').value=r.dau;$('routeEndInput').value=r.cuoi;$('routeLengthInput').value=r.tong;$('routeNoteInput').value=r.note||'';$('routeSpecInput').value=r.defaultSpec||'';
+}
+function resetRouteForm(){
+ if(!isMasterDevice()&&cloudUser){$('routeEditId').value='';$('routeIdInput').value='';$('routeNameInput').value='';$('routeStartInput').value='';$('routeEndInput').value='';$('routeLengthInput').value='';$('routeNoteInput').value='';$('routeSpecInput').value='';return;}
+ $('routeEditId').value='';$('routeIdInput').value='';$('routeNameInput').value='';$('routeStartInput').value='';$('routeEndInput').value='';$('routeLengthInput').value='';$('routeNoteInput').value='';$('routeSpecInput').value='';
+}
+function deleteRoute(id){
+ if(!ensureMaster('xóa tuyến'))return;
+ const linked=data.filter(x=>String(x.idTuyen)===String(id)).length;
+ const msg=linked?`Tuyến này đang có ${linked} bản ghi khảo sát. Xóa tuyến sẽ KHÔNG xóa bản ghi khảo sát cũ nhưng tuyến sẽ không còn trong danh mục. Tiếp tục?`:'Xóa tuyến này khỏi danh mục?';
+ if(!confirm(msg))return;routes=routes.filter(r=>r.id!==id);persistRoutes();refreshRouteSelect();renderRouteTable();render();
+}
+function renderRouteTable(){
+ const q=($('routeSearch')?.value||'').toLowerCase().trim();
+ const rows=routes.filter(r=>!q||[r.name,r.dau,r.cuoi,r.note].join(' ').toLowerCase().includes(q)).sort((a,b)=>a.id-b.id);
+ if($('routeCount'))$('routeCount').textContent=routes.length;
+ const tb=$('routeTableBody');if(!tb)return;
+ const master=isMasterDevice(),authorized=isAuthorizedDevice();
+ tb.innerHTML=rows.length?rows.map((r,i)=>{
+   const lock=routeLockInfo(r.id);
+   let actions='';
+   if(master){
+     actions=`<button class="btn btn-outline-primary btn-sm" onclick="editRoute(${r.id})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRoute(${r.id})">Xóa</button>`;
+     if(lock?.locked)actions+=` <button class="btn btn-warning btn-sm" onclick="unlockRouteForDevices(${r.id})">Mở cho máy khác sửa</button>`;
+     else actions+=` <span class="badge text-bg-success">Đang mở cho thiết bị phụ</span>`;
+   }else if(authorized){
+     actions=lock?.locked?`<span class="badge text-bg-secondary">Đã khóa</span>`:`<button class="btn btn-outline-primary btn-sm" onclick="editRoute(${r.id})">Sửa 1 lần</button>`;
+   }else actions='<span class="badge text-bg-warning">Chưa được cấp quyền</span>';
+   const lockText=lock?.locked?`<div class="small text-muted mt-1">Khóa bởi ${escapeHtml(lock.byDeviceName||'thiết bị')}</div>`:'';
+   return `<tr><td>${i+1}</td><td>${r.id}</td><td class="fw-bold">${escapeHtml(r.name)}</td><td>${escapeHtml(r.dau)}</td><td>${escapeHtml(r.cuoi)}</td><td>${Number(r.tong).toLocaleString('vi-VN')}</td><td>${escapeHtml(r.note||'')}</td><td>${escapeHtml(r.defaultSpec||'')}</td><td class="text-nowrap">${actions}${lockText}</td></tr>`;
+ }).join(''):'<tr><td colspan="9" class="text-center text-muted py-3">Không có tuyến phù hợp.</td></tr>';
+ const newBtn=document.querySelector('button[onclick="resetRouteForm()"]');if(newBtn)newBtn.classList.toggle('d-none',cloudUser&&!master);
+ const imp=document.getElementById('routeImportFile')?.closest('label');if(imp)imp.classList.toggle('d-none',cloudUser&&!master);
+}
+function importRoutesExcel(e){if(!ensureMaster('nhập/cập nhật hàng loạt danh mục tuyến')){e.target.value='';return;}const f=e.target.files[0];if(!f)return;if(typeof XLSX==='undefined'){alert('Không tải được thư viện Excel.');e.target.value='';return;}const rd=new FileReader();rd.onload=()=>{try{const wb=XLSX.read(rd.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const arr=XLSX.utils.sheet_to_json(ws,{defval:''});if(!arr.length)throw new Error('File không có dữ liệu');const pick=(o,names)=>{for(const n of names){if(Object.prototype.hasOwnProperty.call(o,n))return o[n];const k=Object.keys(o).find(k=>String(k).trim().toLowerCase()===n.toLowerCase());if(k)return o[k]}return ''};const imported=arr.map((o,i)=>({id:Number(pick(o,['Mã tuyến','Ma tuyen','ID','STT']))||nextRouteId()+i,name:String(pick(o,['Tên tuyến','Tên tuyến đường','Ten tuyen','Tên đường'])||'').trim().toUpperCase(),dau:String(pick(o,['Điểm đầu','Diem dau'])||'').trim(),cuoi:String(pick(o,['Điểm cuối','Diem cuoi'])||'').trim(),tong:Number(pick(o,['Chiều dài (m)','Chiều dài','Chieu dai','Tổng chiều dài']))||0,note:String(pick(o,['Ghi chú','Ghi chu'])||'').trim(),defaultSpec:String(pick(o,['Quy cách mương mặc định','Quy cách','Quy cach'])||'').trim()})).filter(r=>r.name);if(!imported.length)throw new Error('Không nhận diện được cột Tên tuyến');let added=0,updated=0;for(const r of imported){const idx=routes.findIndex(x=>x.id===r.id||x.name.toUpperCase()===r.name.toUpperCase());if(idx>=0){const old=routes[idx];routes[idx]={...old,...r,id:old.id};data.forEach(x=>{if(String(x.idTuyen)===String(old.id)){x.ten=r.name;x.diemDau=r.dau;x.diemCuoi=r.cuoi;}});updated++;}else{r.id=routes.some(x=>x.id===r.id)?nextRouteId():r.id;routes.push(r);added++;}}normalizeRoutes();persistRoutes();persist();refreshRouteSelect();renderRouteTable();render();alert(`Đã nhập danh mục: thêm ${added} tuyến, cập nhật ${updated} tuyến.`);}catch(err){alert('Không thể nhập danh mục tuyến: '+err.message);}e.target.value='';};rd.readAsArrayBuffer(f);}
 function exportRoutesExcel(){if(typeof XLSX==='undefined')return alert('Không tải được thư viện Excel.');const rows=routes.map((r,i)=>({'STT':i+1,'Mã tuyến':r.id,'Tên tuyến':r.name,'Điểm đầu':r.dau,'Điểm cuối':r.cuoi,'Chiều dài (m)':r.tong,'Ghi chú':r.note||'','Quy cách mương mặc định':r.defaultSpec||''}));const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:6},{wch:10},{wch:28},{wch:34},{wch:34},{wch:16},{wch:30},{wch:34}];XLSX.utils.book_append_sheet(wb,ws,'Danh mục tuyến');XLSX.writeFile(wb,'Danh_muc_tuyen_duong_'+today()+'.xlsx');}
 
 function readNumber(id, fallback=0){
@@ -377,6 +477,7 @@ function readNumber(id, fallback=0){
 async function saveRecord(e){
  if(e){e.preventDefault();e.stopPropagation();}
  try{
+   if(!ensureDeviceCanUse('lưu/cập nhật khảo sát'))return false;
    const routeId=String($('selectRoute').value||'').trim();
    const r=routes.find(x=>String(x.id)===routeId);
    if(pendingImagePromise){
@@ -390,19 +491,20 @@ async function saveRecord(e){
    const chieuDaiTrai=Math.max(0,readNumber('leftLength',0));
    const chieuDai=chieuDaiPhai+chieuDaiTrai;
    const rong=readNumber('width',0.5);
+   const cao=Math.max(0,readNumber('height',0));
    const dayBun=readNumber('mudDepth',0);
    const hoThuPhai=Math.max(0,Math.round(readNumber('rightPits',0)));
    const hoThuTrai=Math.max(0,Math.round(readNumber('leftPits',0)));
    const hoThu=hoThuPhai+hoThuTrai;
-   if(chieuDai<0 || rong<=0 || dayBun<0){setSaveStatus('Chưa lưu: kiểm tra chiều dài, chiều rộng và độ dày bùn.','warning');alert('Giá trị hình học không hợp lệ.');return false;}
+   if(chieuDai<0 || rong<=0 || cao<0 || dayBun<0){setSaveStatus('Chưa lưu: kiểm tra chiều dài, chiều rộng và độ dày bùn.','warning');alert('Giá trị hình học không hợp lệ.');return false;}
 
    const quyCach=String($('spec').value||'').trim() || r.defaultSpec || 'Chưa cập nhật quy cách';
    $('spec').value=quyCach;
    const rec={
      idTuyen:Number(r.id),ten:r.name,diemDau:String($('surveyStart').value||r.dau||'').trim(),diemCuoi:String($('surveyEnd').value||r.cuoi||'').trim(),
-     ngay:$('surveyDate').value||today(),chieuDai,chieuDaiPhai,chieuDaiTrai,quyCach,rong,dayBun,hoThu,hoThuPhai,hoThuTrai,
+     ngay:$('surveyDate').value||today(),chieuDai,chieuDaiPhai,chieuDaiTrai,quyCach,rong,cao,dayBun,hoThu,hoThuPhai,hoThuTrai,
      mucDo:$('level').value||'Bình thường',ghiChu:String($('notes').value||'').trim(),
-     hinhAnh:currentImage||'',updatedAt:new Date().toISOString(),updatedBy:currentUser?.fullName||currentUser?.username||''
+     hinhAnh:currentImage||'',updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()
    };
    calc(rec);
 
@@ -444,13 +546,13 @@ function calc(x){x.khoiLuongBun=Number((x.chieuDai*x.rong*x.dayBun).toFixed(2));
 function recalcAll(){localStorage.setItem(SETTINGS,JSON.stringify({mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}));data.forEach(calc);persist();render();}
 
 function render(){const q=$('searchText').value.toLowerCase().trim(),lv=$('filterLevel').value; const rows=data.filter(x=>(!lv||x.mucDo===lv)&&(!q||[x.ten,x.diemDau,x.diemCuoi,x.quyCach,x.ghiChu].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.idTuyen-b.idTuyen); let totalMud=0,totalCost=0,totalPits=0,totalLen=0,severe=0; data.forEach(x=>{totalMud+=Number(x.khoiLuongBun)||0;totalCost+=Number(x.thanhTien)||0;totalPits+=Number(x.hoThu)||0;totalLen+=Number(x.chieuDai)||0;if(x.mucDo!=='Bình thường')severe++}); $('kpiRoutes').textContent=`${data.length}/${routes.length}`;$('kpiLength').textContent=totalLen.toLocaleString('vi-VN')+' m';$('kpiMud').textContent=totalMud.toFixed(2)+' m³';$('kpiPits').textContent=totalPits.toLocaleString('vi-VN');$('kpiSevere').textContent=severe;$('kpiCost').textContent=money(totalCost);
- const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="16" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • bùn=${x.dayBun}m</span></td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap"><button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa</button></td></tr>`}).join('');}
+ const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="17" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • H=${Number(x.cao||0)}m • bùn=${x.dayBun}m</span></td><td class="fw-bold">${Number(x.cao||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap"><button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa</button></td></tr>`}).join('');}
 function editRecord(id){
  const x=data.find(r=>String(r.idTuyen)===String(id));if(!x)return;
  $('editId').value=id;$('selectRoute').value=id;loadRoute();
  $('surveyDate').value=x.ngay||today();$('surveyStart').value=x.diemDau||'';$('surveyEnd').value=x.diemCuoi||'';
  $('rightLength').value=x.chieuDaiPhai??x.chieuDai??0;$('leftLength').value=x.chieuDaiTrai??0;
- $('spec').value=x.quyCach;$('width').value=x.rong;$('mudDepth').value=x.dayBun;
+ $('spec').value=x.quyCach;$('width').value=x.rong;$('height').value=x.cao??0;$('mudDepth').value=x.dayBun;
  $('rightPits').value=x.hoThuPhai??x.hoThu??0;$('leftPits').value=x.hoThuTrai??0;
  $('level').value=x.mucDo;$('notes').value=x.ghiChu||'';
  currentImage=x.hinhAnh||'';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';
@@ -463,9 +565,9 @@ function removeCurrentPhoto(){
  $('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');
  if($('photoStatus'))$('photoStatus').textContent='Đã chọn xóa ảnh. Bấm LƯU / CẬP NHẬT để xác nhận.';
 }
-function resetForm(){$('surveyForm').reset();$('editId').value='';$('surveyDate').value=today();$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('width').value=.5;currentImage='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');loadRoute();}
+function resetForm(){$('surveyForm').reset();$('editId').value='';$('surveyDate').value=today();$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('width').value=.5;$('height').value=0;currentImage='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');loadRoute();}
 async function deleteRecord(id){if(confirm('Xóa bản ghi tuyến này?')){data=data.filter(x=>String(x.idTuyen)!==String(id));persist();if(cloudDb&&cloudUser&&cloudWorkspace)await cloudPushPhoto(id,'');render()}}
-function clearAll(){if(confirm('Xóa TOÀN BỘ dữ liệu khảo sát? Hành động này không thể hoàn tác nếu chưa sao lưu.')){data=[];persist();render()}}
+function clearAll(){if(!ensureMaster('xóa toàn bộ dữ liệu khảo sát'))return;if(confirm('Xóa TOÀN BỘ dữ liệu khảo sát? Hành động này không thể hoàn tác nếu chưa sao lưu.')){data=[];persist();render()}}
 function showImage(id){const x=data.find(r=>String(r.idTuyen)===String(id));if(!x?.hinhAnh)return;$('modalImage').src=x.hinhAnh;new bootstrap.Modal($('imgModal')).show()}
 function compressImage(file,maxW,quality){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const scale=Math.min(1,maxW/img.width);const c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext('2d').drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',quality))};img.onerror=reject;img.src=e.target.result};reader.onerror=reject;reader.readAsDataURL(file)})}
 
@@ -473,41 +575,93 @@ function cloudSetStatus(msg,type='info'){
  const a=$('cloudAlert');if(a){a.className=`alert alert-${type} py-2 small`;a.textContent=msg}
  const d=$('cloudDot');if(d){d.className='cloud-dot'+(type==='success'?' on':type==='danger'?' err':'')}
 }
-function getFirebaseConfig(){const shared=window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.firebase;if(shared&&shared.apiKey&&shared.projectId)return shared;return safeParse(localStorage.getItem(CLOUD_CFG_STORE),null)}
-function saveFirebaseConfig(){try{const cfg=JSON.parse($('firebaseConfigInput').value.trim());if(!cfg.apiKey||!cfg.projectId)throw new Error('Thiếu apiKey/projectId');localStorage.setItem(CLOUD_CFG_STORE,JSON.stringify(cfg));cloudSetStatus('Đã lưu cấu hình Firebase. Bấm Kết nối.','success')}catch(e){cloudSetStatus('Firebase Config không hợp lệ: '+e.message,'danger')}}
+function getFirebaseConfig(){
+ const shared=window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.firebase;
+ if(shared&&shared.apiKey&&shared.projectId)return shared;
+ return safeParse(localStorage.getItem(CLOUD_CFG_STORE),null);
+}
 function ensureFirebase(){
- const cfg=getFirebaseConfig();if(!cfg)throw new Error('Chưa lưu Firebase Config.');
+ const cfg=getFirebaseConfig();if(!cfg)throw new Error('Không tìm thấy Firebase Config trong firebase-config.js.');
  if(typeof firebase==='undefined')throw new Error('Không tải được thư viện Firebase. Kiểm tra Internet.');
  let app;try{app=firebase.apps.length?firebase.app():firebase.initializeApp(cfg)}catch(e){throw new Error('Không khởi tạo Firebase: '+e.message)}
  cloudAuth=app.auth();cloudDb=app.firestore();return true;
 }
 function cloudPath(){return `workspaces/${cloudWorkspace}`}
-async function cloudRegister(){
- try{ensureFirebase();const email=$('cloudEmail').value.trim().toLowerCase(),pass=$('cloudPassword').value;if(!email||pass.length<6)throw new Error('Nhập email và mật khẩu từ 6 ký tự.');const cred=await cloudAuth.createUserWithEmailAndPassword(email,pass);cloudUser=cred.user;cloudSetStatus('Đăng ký Cloud thành công. Nhập Workspace rồi bấm Kết nối.','success')}catch(e){cloudSetStatus('Không đăng ký được: '+e.message,'danger')}
+async function requestDeviceAccess(){
+ try{
+   if(!cloudDb||!cloudUser||!cloudWorkspace)throw new Error('Hãy kết nối Cloud trước.');
+   if(isAuthorizedDevice())return;
+   const pend=[...(cloudMeta.pendingDevices||[])].filter(d=>String(d.id)!==String(deviceId));
+   pend.push({id:deviceId,name:deviceName,requestedAt:new Date().toISOString()});
+   cloudMeta.pendingDevices=pend;
+   await cloudDb.doc(`${cloudPath()}/config/meta`).set({pendingDevices:pend},{merge:true});
+   cloudSetStatus('Đã gửi yêu cầu cấp quyền. Vui lòng duyệt trên máy chính.','warning');
+ }catch(e){cloudSetStatus('Không gửi được yêu cầu cấp quyền: '+e.message,'danger')}
+}
+async function grantDeviceAccess(id){
+ if(!ensureMaster('cấp quyền thiết bị'))return;
+ const pending=[...(cloudMeta.pendingDevices||[])];
+ const d=pending.find(x=>String(x.id)===String(id));if(!d)return;
+ const auth=[...(cloudMeta.authorizedDevices||[])].filter(x=>String(x.id)!==String(id));
+ auth.push({id:d.id,name:d.name||('Thiết bị '+String(d.id).slice(0,8)),grantedAt:new Date().toISOString(),grantedByDeviceId:deviceId});
+ const nextPending=pending.filter(x=>String(x.id)!==String(id));
+ cloudMeta.authorizedDevices=auth;cloudMeta.pendingDevices=nextPending;
+ await cloudDb.doc(`${cloudPath()}/config/meta`).set({authorizedDevices:auth,pendingDevices:nextPending},{merge:true});
+ renderPermissionPanel();cloudSetStatus('Đã cấp quyền cho '+(d.name||id),'success');
+}
+async function revokeDeviceAccess(id){
+ if(!ensureMaster('thu hồi quyền thiết bị'))return;
+ if(!confirm('Thu hồi quyền thiết bị này?'))return;
+ const auth=[...(cloudMeta.authorizedDevices||[])].filter(x=>String(x.id)!==String(id));
+ cloudMeta.authorizedDevices=auth;
+ await cloudDb.doc(`${cloudPath()}/config/meta`).set({authorizedDevices:auth},{merge:true});
+ renderPermissionPanel();
+}
+function renderPermissionPanel(){
+ const p=$('permissionPanel');if(!p)return;
+ p.classList.toggle('d-none',!isMasterDevice());
+ if(!isMasterDevice())return;
+ const pending=cloudMeta.pendingDevices||[],auth=cloudMeta.authorizedDevices||[];
+ const pd=$('pendingDeviceList'),ad=$('authorizedDeviceList');
+ if(pd)pd.innerHTML=pending.length?pending.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.id)}</code><div class="mt-1"><button class="btn btn-sm btn-success" onclick="grantDeviceAccess('${escapeHtml(d.id)}')">Cấp quyền</button></div></div>`).join(''):'<span class="text-muted">Không có yêu cầu mới.</span>';
+ if(ad)ad.innerHTML=auth.length?auth.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.id)}</code><div class="mt-1"><button class="btn btn-sm btn-outline-danger" onclick="revokeDeviceAccess('${escapeHtml(d.id)}')">Thu hồi</button></div></div>`).join(''):'<span class="text-muted">Chưa cấp quyền thiết bị phụ nào.</span>';
 }
 async function cloudConnect(){
  try{
-  ensureFirebase();const email=$('cloudEmail').value.trim().toLowerCase(),pass=$('cloudPassword').value,ws=($('cloudWorkspace').value||'').trim().replace(/[^a-zA-Z0-9_-]/g,'');if(!ws)throw new Error('Nhập Mã Workspace.');
-  cloudWorkspace=ws;localStorage.setItem(CLOUD_WS_STORE,ws);
-  const cred=cloudAuth.currentUser&&cloudAuth.currentUser.email===email?{user:cloudAuth.currentUser}:await cloudAuth.signInWithEmailAndPassword(email,pass);cloudUser=cred.user;
-  const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`),stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
-  let metaSnap=null;
-  try{metaSnap=await metaRef.get()}catch(readErr){
-    // Workspace mới có thể chưa cho phép đọc vì chưa có meta; thử tạo với chính tài khoản hiện tại làm chủ.
-    cloudMeta={ownerUid:cloudUser.uid,ownerEmail:cloudUser.email,allowedEmails:[cloudUser.email],createdAt:new Date().toISOString()};
-    try{await metaRef.set(cloudMeta);metaSnap=await metaRef.get()}catch(createErr){throw new Error('Workspace chưa tồn tại hoặc tài khoản chưa được cấp quyền. '+createErr.message)}
-  }
-  if(!metaSnap.exists){cloudMeta={ownerUid:cloudUser.uid,ownerEmail:cloudUser.email,allowedEmails:[cloudUser.email],createdAt:new Date().toISOString()};await metaRef.set(cloudMeta)}else{cloudMeta=metaSnap.data();const allowed=(cloudMeta.allowedEmails||[]).map(x=>String(x).toLowerCase());if(cloudMeta.ownerUid!==cloudUser.uid&&!allowed.includes(String(cloudUser.email).toLowerCase()))throw new Error('Tài khoản chưa được chủ Workspace cấp quyền.');}
-  const stateSnap=await stateRef.get();
-  if(stateSnap.exists){applyCloudState(stateSnap.data())}else{await stateRef.set(buildCloudState())}
-  if(cloudUnsub)cloudUnsub();cloudUnsub=stateRef.onSnapshot(snap=>{if(snap.exists&&!cloudApplying)applyCloudState(snap.data())},err=>cloudSetStatus('Mất đồng bộ: '+err.message,'danger'));
-  await cloudLoadAndWatchPhotos();
-  renderPermissionPanel();cloudSetStatus(`Đã kết nối ${ws} • ${cloudUser.email}. Dữ liệu sẽ tự đồng bộ.`,`success`);
+   ensureFirebase();
+   const email=MASTER_EMAIL,pass=$('cloudPassword').value,ws=($('cloudWorkspace').value||'').trim().replace(/[^a-zA-Z0-9_-]/g,'');
+   if(!ws)throw new Error('Thiếu Mã Workspace.');if(!pass||pass.length<6)throw new Error('Nhập mật khẩu Firebase của tài khoản chính.');
+   cloudWorkspace=ws;localStorage.setItem(CLOUD_WS_STORE,ws);
+   const cred=cloudAuth.currentUser&&String(cloudAuth.currentUser.email).toLowerCase()===MASTER_EMAIL?{user:cloudAuth.currentUser}:await cloudAuth.signInWithEmailAndPassword(email,pass);
+   cloudUser=cred.user;
+   if(String(cloudUser.email||'').toLowerCase()!==MASTER_EMAIL)throw new Error('Chỉ được dùng tài khoản '+MASTER_EMAIL);
+   const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`),stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
+   let metaSnap=await metaRef.get().catch(()=>null);
+   if(!metaSnap||!metaSnap.exists){
+     cloudMeta={ownerUid:cloudUser.uid,ownerEmail:MASTER_EMAIL,allowedEmails:[MASTER_EMAIL],ownerDeviceId:null,ownerDeviceName:'',authorizedDevices:[],pendingDevices:[],routeLocks:{},createdAt:new Date().toISOString()};
+     await metaRef.set(cloudMeta);
+     metaSnap=await metaRef.get();
+   }
+   cloudMeta=metaSnap.data()||{};
+   if(!cloudMeta.ownerDeviceId){
+     if(confirm('Workspace chưa có máy chính. Bạn có muốn đặt THIẾT BỊ NÀY làm MÁY CHÍNH không?')){
+       cloudMeta.ownerDeviceId=deviceId;cloudMeta.ownerDeviceName=deviceName;cloudMeta.authorizedDevices=cloudMeta.authorizedDevices||[];cloudMeta.pendingDevices=cloudMeta.pendingDevices||[];cloudMeta.routeLocks=cloudMeta.routeLocks||{};
+       await metaRef.set({ownerDeviceId:deviceId,ownerDeviceName:deviceName,authorizedDevices:cloudMeta.authorizedDevices,pendingDevices:cloudMeta.pendingDevices,routeLocks:cloudMeta.routeLocks},{merge:true});
+     }
+   }
+   metaSnap=await metaRef.get();cloudMeta=metaSnap.data()||{};
+   if(!isMasterDevice()&&!isAuthorizedDevice())await requestDeviceAccess();
+   const stateSnap=await stateRef.get();if(stateSnap.exists)applyCloudState(stateSnap.data());else if(isMasterDevice())await stateRef.set(buildCloudState());
+   if(cloudUnsub)cloudUnsub();cloudUnsub=stateRef.onSnapshot(s=>{if(s.exists&&!cloudApplying)applyCloudState(s.data())},e=>cloudSetStatus('Mất đồng bộ dữ liệu: '+e.message,'danger'));
+   if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=metaRef.onSnapshot(s=>{if(s.exists){cloudMeta=s.data();updateDeviceAccessUI();renderPermissionPanel();renderRouteTable();}},e=>cloudSetStatus('Mất đồng bộ phân quyền: '+e.message,'danger'));
+   await cloudLoadAndWatchPhotos();
+   updateDeviceAccessUI();renderPermissionPanel();
+   cloudSetStatus(isMasterDevice()?`Đã kết nối • MÁY CHÍNH • ${MASTER_EMAIL}`:isAuthorizedDevice()?`Đã kết nối • Thiết bị đã được cấp quyền`:`Đã kết nối • Đang chờ máy chính cấp quyền`,'success');
  }catch(e){cloudSetStatus('Không kết nối được Cloud: '+e.message,'danger')}
 }
 function buildCloudState(){
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:6,updatedAt:new Date().toISOString(),updatedBy:cloudUser?.email||currentUser?.username||'',routes:routes,data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:7,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:routes,data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -516,71 +670,42 @@ function applyCloudState(obj){
    if(Array.isArray(obj.data)){
      const localPhotos=new Map(data.map(x=>[String(x.idTuyen),x.hinhAnh||'']));
      data=obj.data.map(normalizeSurveyRow).filter(Boolean).map(x=>({...x,hinhAnh:x.hinhAnh||localPhotos.get(String(x.idTuyen))||''}));
-     try{localStorage.setItem(STORE,JSON.stringify(data))}catch(e){console.warn('LOCAL STORAGE PHOTO',e)}
+     try{localStorage.setItem(STORE,JSON.stringify(data))}catch(e){console.warn('LOCAL STORAGE',e)}
    }
    if(obj.settings){$('cfgMudPrice').value=obj.settings.mudPrice??$('cfgMudPrice').value;$('cfgPitPrice').value=obj.settings.pitPrice??$('cfgPitPrice').value}
-   render();renderRouteTable();cloudSetStatus(`Đã đồng bộ lúc ${new Date().toLocaleTimeString('vi-VN')}`,'success')
+   render();renderRouteTable();
  }finally{setTimeout(()=>cloudApplying=false,150)}
 }
-
 async function cloudPushPhoto(routeId,imageData){
- if(!cloudDb||!cloudUser||!cloudWorkspace)return true;
- try{
-   const ref=cloudDb.doc(`${cloudPath()}/photos/${routeId}`);
-   if(imageData){
-     await ref.set({routeId:Number(routeId),hinhAnh:imageData,updatedAt:new Date().toISOString(),updatedBy:cloudUser.email||''},{merge:false});
-   }else{
-     await ref.delete().catch(()=>{});
-   }
-   return true;
- }catch(e){
-   console.error('CLOUD PHOTO SAVE ERROR',e);
-   cloudSetStatus('Lưu ảnh Cloud lỗi: '+e.message,'danger');
-   return false;
- }
+ if(!cloudDb||!cloudUser||!cloudWorkspace||!isAuthorizedDevice())return true;
+ try{const ref=cloudDb.doc(`${cloudPath()}/photos/${routeId}`);if(imageData)await ref.set({routeId:Number(routeId),hinhAnh:imageData,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()},{merge:false});else await ref.delete().catch(()=>{});return true}
+ catch(e){cloudSetStatus('Lưu ảnh Cloud lỗi: '+e.message,'danger');return false}
 }
-function applyCloudPhotoDoc(doc){
- const p=doc.data()||{};
- const id=String(p.routeId??doc.id);
- const row=data.find(x=>String(x.idTuyen)===id);
- if(row){
-   row.hinhAnh=p.hinhAnh||'';
-   try{localStorage.setItem(STORE,JSON.stringify(data))}catch(e){console.warn('LOCAL PHOTO CACHE',e)}
-   render();
- }
-}
+function applyCloudPhotoDoc(doc){const p=doc.data()||{},id=String(p.routeId??doc.id),row=data.find(x=>String(x.idTuyen)===id);if(row){row.hinhAnh=p.hinhAnh||'';try{localStorage.setItem(STORE,JSON.stringify(data))}catch{}render()}}
 async function cloudLoadAndWatchPhotos(){
  if(!cloudDb||!cloudWorkspace)return;
- try{
-   const col=cloudDb.collection(`${cloudPath()}/photos`);
-   const snap=await col.get();
-   snap.forEach(applyCloudPhotoDoc);
-   if(cloudPhotoUnsub)cloudPhotoUnsub();
-   cloudPhotoUnsub=col.onSnapshot(s=>{
-     s.docChanges().forEach(ch=>{
-       if(ch.type==='removed'){
-         const row=data.find(x=>String(x.idTuyen)===String(ch.doc.id));
-         if(row){row.hinhAnh='';render();}
-       }else applyCloudPhotoDoc(ch.doc);
-     });
-   },e=>cloudSetStatus('Đồng bộ ảnh lỗi: '+e.message,'danger'));
- }catch(e){
-   console.error('PHOTO WATCH ERROR',e);
-   cloudSetStatus('Tải ảnh Cloud lỗi: '+e.message,'danger');
- }
+ try{const col=cloudDb.collection(`${cloudPath()}/photos`),snap=await col.get();snap.forEach(applyCloudPhotoDoc);if(cloudPhotoUnsub)cloudPhotoUnsub();cloudPhotoUnsub=col.onSnapshot(s=>s.docChanges().forEach(ch=>{if(ch.type==='removed'){const row=data.find(x=>String(x.idTuyen)===String(ch.doc.id));if(row){row.hinhAnh='';render()}}else applyCloudPhotoDoc(ch.doc)}),e=>cloudSetStatus('Đồng bộ ảnh lỗi: '+e.message,'danger'))}
+ catch(e){cloudSetStatus('Tải ảnh Cloud lỗi: '+e.message,'danger')}
 }
-
-function scheduleCloudPush(){if(!cloudDb||!cloudUser||!cloudWorkspace||cloudApplying)return;clearTimeout(cloudPushTimer);cloudPushTimer=setTimeout(cloudPushState,500)}
-async function cloudPushState(){if(!cloudDb||!cloudUser||!cloudWorkspace||cloudApplying)return;try{await cloudDb.doc(`${cloudPath()}/state/main`).set(buildCloudState(),{merge:false});cloudSetStatus(`Đã đồng bộ • ${cloudUser.email}`,'success')}catch(e){cloudSetStatus('Lưu Cloud lỗi: '+e.message,'danger')}}
-async function cloudDisconnect(){try{if(cloudUnsub)cloudUnsub();cloudUnsub=null;if(cloudPhotoUnsub)cloudPhotoUnsub();cloudPhotoUnsub=null;if(cloudAuth)await cloudAuth.signOut()}catch{}cloudDb=null;cloudAuth=null;cloudUser=null;cloudMeta=null;cloudWorkspace='';$('permissionPanel')?.classList.add('d-none');cloudSetStatus('Đã ngắt Cloud. Đang dùng dữ liệu cục bộ.','info')}
-function renderPermissionPanel(){const p=$('permissionPanel');if(!p||!cloudMeta||!cloudUser)return;const owner=cloudMeta.ownerUid===cloudUser.uid;p.classList.toggle('d-none',!owner);if(owner){const arr=cloudMeta.allowedEmails||[];$('allowedList').innerHTML='<b>Đang được phép:</b> '+arr.map(escapeHtml).join(', ')}}
-async function grantCloudAccess(){try{if(!cloudMeta||cloudMeta.ownerUid!==cloudUser?.uid)throw new Error('Chỉ chủ Workspace được cấp quyền.');const email=$('allowEmail').value.trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(email))throw new Error('Email không hợp lệ.');const set=new Set((cloudMeta.allowedEmails||[]).map(x=>String(x).toLowerCase()));set.add(email);cloudMeta.allowedEmails=[...set];await cloudDb.doc(`${cloudPath()}/config/meta`).set(cloudMeta,{merge:true});$('allowEmail').value='';renderPermissionPanel();cloudSetStatus('Đã cấp quyền cho '+email,'success')}catch(e){cloudSetStatus('Không cấp quyền được: '+e.message,'danger')}}
-function initCloudUI(){const cfg=getFirebaseConfig();if(cfg)$('firebaseConfigInput').value=JSON.stringify(cfg,null,2);const fixedWs=(window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.workspace)||'';$('cloudWorkspace').value=fixedWs||localStorage.getItem(CLOUD_WS_STORE)||'';if(fixedWs){$('cloudWorkspace').readOnly=true;const ta=$('firebaseConfigInput');if(ta){ta.readOnly=true;ta.closest('.row')?.querySelector('button')?.classList.add('d-none')}}}
+function scheduleCloudPush(){if(!cloudDb||!cloudUser||!cloudWorkspace||cloudApplying||!isAuthorizedDevice())return;clearTimeout(cloudPushTimer);cloudPushTimer=setTimeout(cloudPushState,500)}
+async function cloudPushState(){if(!cloudDb||!cloudUser||!cloudWorkspace||cloudApplying||!isAuthorizedDevice())return;try{await cloudDb.doc(`${cloudPath()}/state/main`).set(buildCloudState(),{merge:false});cloudSetStatus(`Đã đồng bộ • ${getUpdateActor()}`,'success')}catch(e){cloudSetStatus('Lưu Cloud lỗi: '+e.message,'danger')}}
+async function cloudDisconnect(){
+ try{if(cloudUnsub)cloudUnsub();cloudUnsub=null;if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=null;if(cloudPhotoUnsub)cloudPhotoUnsub();cloudPhotoUnsub=null;if(cloudAuth)await cloudAuth.signOut()}catch{}
+ cloudDb=null;cloudAuth=null;cloudUser=null;cloudMeta=null;cloudWorkspace='';updateDeviceAccessUI();$('permissionPanel')?.classList.add('d-none');cloudSetStatus('Đã ngắt Cloud. Thiết bị không có quyền cập nhật cho đến khi kết nối lại.','info')
+}
+function initCloudUI(){
+ initDeviceIdentity();
+ const fixedWs=(window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.workspace)||'CUALO-2026';
+ if($('cloudWorkspace'))$('cloudWorkspace').value=fixedWs;
+ if($('cloudEmail'))$('cloudEmail').value=MASTER_EMAIL;
+ if($('deviceIdInput'))$('deviceIdInput').value=deviceId;
+ if($('deviceNameInput'))$('deviceNameInput').value=deviceName;
+}
 
 function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),settings:{mudPrice:Number($('cfgMudPrice').value),pitPrice:Number($('cfgPitPrice').value)},routes,data};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'Sao_luu_khao_sat_muong_'+today()+'.json')}
 function restoreJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!Array.isArray(obj.data))throw 0;if(!confirm(`Khôi phục ${obj.data.length} bản ghi và thay thế dữ liệu hiện tại?`))return;data=obj.data;if(Array.isArray(obj.routes)&&obj.routes.length){routes=obj.routes;normalizeRoutes();persistRoutes();refreshRouteSelect();}if(obj.settings){$('cfgMudPrice').value=obj.settings.mudPrice??$('cfgMudPrice').value;$('cfgPitPrice').value=obj.settings.pitPrice??$('cfgPitPrice').value}data.forEach(x=>{if(x.khoiLuongBun==null)calc(x)});persist();recalcAll();alert('Khôi phục dữ liệu thành công.')}catch{alert('File sao lưu không hợp lệ.')}};r.readAsText(f);e.target.value='';}
 function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-function exportExcel(){if(!data.length)return alert('Chưa có dữ liệu để xuất.'); if(typeof XLSX==='undefined')return alert('Không tải được thư viện Excel. Hãy kiểm tra kết nối Internet.'); const detail=data.sort((a,b)=>a.idTuyen-b.idTuyen).map((x,i)=>({'STT':i+1,'Tên tuyến đường':x.ten,'Điểm đầu':x.diemDau,'Điểm cuối':x.diemCuoi,'Ngày khảo sát':formatDateVN(x.ngay),'Chiều dài phải tuyến (m)':x.chieuDaiPhai||0,'Số hố thu phải tuyến':x.hoThuPhai||0,'Chiều dài trái tuyến (m)':x.chieuDaiTrai||0,'Số hố thu trái tuyến':x.hoThuTrai||0,'Tổng chiều dài xử lý (m)':x.chieuDai,'Quy cách':x.quyCach,'Chiều rộng (m)':x.rong,'Bùn dày (m)':x.dayBun,'Khối lượng bùn (m³)':x.khoiLuongBun,'Tổng số hố thu':x.hoThu,'Mức độ':x.mucDo,'Ghi chú':x.ghiChu,'Người cập nhật':x.updatedBy||'','Dự toán (VNĐ)':x.thanhTien})); const summary=[{'Chỉ tiêu':'Số tuyến đã khảo sát','Giá trị':data.length,'Đơn vị':'tuyến'},{'Chỉ tiêu':'Tổng chiều dài xử lý','Giá trị':data.reduce((s,x)=>s+x.chieuDai,0),'Đơn vị':'m'},{'Chỉ tiêu':'Tổng khối lượng bùn','Giá trị':data.reduce((s,x)=>s+x.khoiLuongBun,0),'Đơn vị':'m³'},{'Chỉ tiêu':'Tổng hố thu','Giá trị':data.reduce((s,x)=>s+x.hoThu,0),'Đơn vị':'hố'},{'Chỉ tiêu':'Tổng dự toán','Giá trị':data.reduce((s,x)=>s+x.thanhTien,0),'Đơn vị':'VNĐ'}]; const wb=XLSX.utils.book_new(),ws1=XLSX.utils.json_to_sheet(detail),ws2=XLSX.utils.json_to_sheet(summary);ws1['!cols']=[{wch:6},{wch:24},{wch:28},{wch:28},{wch:14},{wch:18},{wch:18},{wch:18},{wch:18},{wch:20},{wch:28},{wch:14},{wch:14},{wch:20},{wch:16},{wch:18},{wch:32},{wch:18},{wch:18}];ws2['!cols']=[{wch:28},{wch:18},{wch:12}];XLSX.utils.book_append_sheet(wb,ws1,'Chi tiết khảo sát');XLSX.utils.book_append_sheet(wb,ws2,'Tổng hợp');XLSX.writeFile(wb,'Bao_cao_khao_sat_du_toan_muong_'+today()+'.xlsx')}
+function exportExcel(){if(!data.length)return alert('Chưa có dữ liệu để xuất.'); if(typeof XLSX==='undefined')return alert('Không tải được thư viện Excel. Hãy kiểm tra kết nối Internet.'); const detail=data.sort((a,b)=>a.idTuyen-b.idTuyen).map((x,i)=>({'STT':i+1,'Tên tuyến đường':x.ten,'Điểm đầu':x.diemDau,'Điểm cuối':x.diemCuoi,'Ngày khảo sát':formatDateVN(x.ngay),'Chiều dài phải tuyến (m)':x.chieuDaiPhai||0,'Số hố thu phải tuyến':x.hoThuPhai||0,'Chiều dài trái tuyến (m)':x.chieuDaiTrai||0,'Số hố thu trái tuyến':x.hoThuTrai||0,'Tổng chiều dài xử lý (m)':x.chieuDai,'Quy cách':x.quyCach,'Chiều rộng (m)':x.rong,'Chiều cao mương (m)':x.cao||0,'Bùn dày (m)':x.dayBun,'Khối lượng bùn (m³)':x.khoiLuongBun,'Tổng số hố thu':x.hoThu,'Mức độ':x.mucDo,'Ghi chú':x.ghiChu,'Người cập nhật':x.updatedBy||'','Dự toán (VNĐ)':x.thanhTien})); const summary=[{'Chỉ tiêu':'Số tuyến đã khảo sát','Giá trị':data.length,'Đơn vị':'tuyến'},{'Chỉ tiêu':'Tổng chiều dài xử lý','Giá trị':data.reduce((s,x)=>s+x.chieuDai,0),'Đơn vị':'m'},{'Chỉ tiêu':'Tổng khối lượng bùn','Giá trị':data.reduce((s,x)=>s+x.khoiLuongBun,0),'Đơn vị':'m³'},{'Chỉ tiêu':'Tổng hố thu','Giá trị':data.reduce((s,x)=>s+x.hoThu,0),'Đơn vị':'hố'},{'Chỉ tiêu':'Tổng dự toán','Giá trị':data.reduce((s,x)=>s+x.thanhTien,0),'Đơn vị':'VNĐ'}]; const wb=XLSX.utils.book_new(),ws1=XLSX.utils.json_to_sheet(detail),ws2=XLSX.utils.json_to_sheet(summary);ws1['!cols']=[{wch:6},{wch:24},{wch:28},{wch:28},{wch:14},{wch:18},{wch:18},{wch:18},{wch:18},{wch:20},{wch:28},{wch:14},{wch:14},{wch:20},{wch:16},{wch:18},{wch:32},{wch:18},{wch:18}];ws2['!cols']=[{wch:28},{wch:18},{wch:12}];XLSX.utils.book_append_sheet(wb,ws1,'Chi tiết khảo sát');XLSX.utils.book_append_sheet(wb,ws2,'Tổng hợp');XLSX.writeFile(wb,'Bao_cao_khao_sat_du_toan_muong_'+today()+'.xlsx')}
 
 let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;const b=$('installPwaBtn');if(b)b.classList.remove('d-none')});
@@ -588,6 +713,6 @@ window.addEventListener('appinstalled',()=>{const b=$('installPwaBtn');if(b)b.cl
 document.addEventListener('click',async e=>{if(e.target?.id==='installPwaBtn'&&deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;e.target.classList.add('d-none')}});
 if('serviceWorker' in navigator && location.protocol==='https:') window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
-window.addEventListener('DOMContentLoaded',()=>{initCloudUI();initAuth();});
+window.addEventListener('DOMContentLoaded',()=>{initCloudUI();initApp();});
 </script>
 </body></html>
