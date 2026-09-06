@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V30 Khóa sau 60 phút, chỉ máy chính mở</title>
+<title>QL Khảo sát Mương Cửa Lò - V32 Xóa/chọn lại ảnh khảo sát</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -89,8 +89,30 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
     <input type="hidden" id="editId">
     <div class="mb-3"><label class="form-label">Tuyến đường</label><select class="form-select" id="selectRoute" required><option value="">-- Chọn tuyến --</option></select>
       <div class="d-flex flex-wrap justify-content-between gap-2 mt-1">
-        <div id="surveyRoutePermissionStatus" class="small text-muted">Đang tải danh sách tuyến được cấp...</div><div class="small text-info mt-1">Sau khi máy phụ cập nhật thành công, tuyến khóa tạm 60 phút. Hết 60 phút hệ thống tự mở lại.</div>
-        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="refreshSurveyRoutesFromCloud()">Đồng bộ danh sách tuyến</button>
+        <div>
+          <div id="surveyRoutePermissionStatus" class="small text-muted">Đang tải danh sách tuyến được cấp...</div>
+          <div class="small text-info mt-1">Sau lần cập nhật thành công đầu tiên, tuyến vẫn mở 60 phút; đủ 60 phút mới khóa và chỉ máy chính được mở lại.</div>
+        </div>
+        <div class="d-flex gap-1 flex-wrap">
+          <button class="btn btn-success btn-sm" type="button" onclick="toggleSurveyNewRouteForm()">+ Thêm tuyến mới</button>
+          <button class="btn btn-outline-secondary btn-sm" type="button" onclick="refreshSurveyRoutesFromCloud()">Đồng bộ danh sách tuyến</button>
+        </div>
+      </div>
+      <div id="surveyNewRouteBox" class="border rounded p-3 mt-2 bg-light d-none">
+        <div class="fw-bold text-success mb-2">THÊM TUYẾN MỚI NGAY TẠI NHẬT KÝ KHẢO SÁT</div>
+        <div class="row g-2">
+          <div class="col-md-6"><label class="form-label">Tên tuyến mới</label><input id="surveyNewRouteName" class="form-control" placeholder="VD: ĐƯỜNG SỐ 01"></div>
+          <div class="col-md-6"><label class="form-label">Chiều dài tuyến (m)</label><input id="surveyNewRouteLength" type="number" min="0" step="0.01" class="form-control" value="0"></div>
+          <div class="col-md-6"><label class="form-label">Điểm đầu</label><input id="surveyNewRouteStart" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Điểm cuối</label><input id="surveyNewRouteEnd" class="form-control"></div>
+          <div class="col-md-6"><label class="form-label">Quy cách mương mặc định</label><input id="surveyNewRouteSpec" class="form-control" list="specOptions"></div>
+          <div class="col-md-6"><label class="form-label">Ghi chú tuyến</label><input id="surveyNewRouteNote" class="form-control"></div>
+          <div class="col-12 d-flex gap-2 flex-wrap">
+            <button class="btn btn-success btn-sm" type="button" onclick="saveNewRouteFromSurvey()">LƯU TUYẾN MỚI & CHỌN TUYẾN</button>
+            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleSurveyNewRouteForm(false)">Hủy</button>
+          </div>
+          <div class="col-12"><div class="small text-muted">Tuyến mới được cập nhật vào Quản lý tuyến và dùng chung cho các máy đã được cấp quyền. Sau khi lưu, tuyến được chọn ngay để nhập số liệu khảo sát.</div></div>
+        </div>
       </div>
     </div>
     <div class="p-3 bg-light rounded border mb-3 small"><b>Điểm đầu mặc định:</b> <span id="routeStart">-</span><br><b>Điểm cuối mặc định:</b> <span id="routeEnd">-</span><br><b>Chiều dài thiết kế (2 bên):</b> <span id="routeLength">-</span> m</div>
@@ -104,7 +126,20 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
     <div class="row g-2 mt-1"><div class="col-md-4"><label class="form-label">Chiều rộng mương (m)</label><input type="number" step="0.01" min="0.01" class="form-control" id="width" value="0.5" required></div><div class="col-md-4"><label class="form-label">Chiều cao mương (m)</label><input type="number" step="0.01" min="0" class="form-control" id="height" value="0" placeholder="Nhập chiều cao thực tế"></div><div class="col-md-4"><label class="form-label">Bùn lắng dày (m)</label><input type="number" step="0.01" min="0" class="form-control" id="mudDepth" value="0"></div></div>
     <div class="row g-2 mt-1"><div class="col-12"><label class="form-label">Mức độ</label><select class="form-select" id="level"><option>Bình thường</option><option>Nghiêm trọng</option><option>Rất nghiêm trọng</option></select></div></div>
     <div class="mt-2"><label class="form-label">Ghi chú hiện trường</label><textarea class="form-control" id="notes" rows="2" placeholder="Vị trí tắc, hư hỏng, kiến nghị..."></textarea></div>
-    <div class="mt-2"><label class="form-label">Ảnh hiện trạng</label><input type="file" class="form-control" id="photo" accept="image/*" capture="environment"><div id="photoPreviewWrap" class="mt-2 d-none"><div class="d-flex align-items-center gap-2 flex-wrap"><img id="photoPreview" class="thumb" alt="Ảnh xem trước"><button class="btn btn-sm btn-outline-danger" type="button" onclick="removeCurrentPhoto()">Xóa ảnh</button></div></div><div id="photoStatus" class="small-note mt-1">Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.</div></div>
+    <div class="mt-2">
+      <label class="form-label">Ảnh hiện trạng</label>
+      <input type="file" class="form-control" id="photo" accept="image/*" capture="environment">
+      <div id="photoPreviewWrap" class="mt-2 d-none">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <img id="photoPreview" class="thumb" alt="Ảnh xem trước">
+          <button class="btn btn-sm btn-outline-warning" type="button" onclick="discardNewPhotoSelection()">Xóa ảnh đang chọn</button>
+          <button class="btn btn-sm btn-outline-primary" type="button" onclick="$('photo').click()">Chọn / chụp ảnh khác</button>
+          <button class="btn btn-sm btn-outline-danger" type="button" onclick="markSavedPhotoForDeletion()">Xóa ảnh đã lưu</button>
+        </div>
+      </div>
+      <div id="photoStatus" class="small-note mt-1">Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.</div>
+      <div class="small text-muted mt-1">Ảnh vừa chọn chưa đúng: bấm <b>Xóa ảnh đang chọn</b> rồi chọn/chụp lại. Ảnh cũ chỉ bị xóa khi bấm <b>Xóa ảnh đã lưu</b> và sau đó bấm LƯU / CẬP NHẬT KHẢO SÁT.</div>
+    </div>
     <button class="btn btn-main w-100 mt-3 py-2 fw-bold" type="submit">LƯU / CẬP NHẬT KHẢO SÁT</button><div id="saveStatus" class="alert alert-light border mt-2 mb-0 py-2 small text-center">Chưa có thao tác lưu.</div>
    </form>
   </div></div>
@@ -282,7 +317,7 @@ function cloneBaseRoutes(){
 let routes=cloneBaseRoutes();
 const STORE='CUALO_DRAINAGE_SURVEY_V4', SETTINGS='CUL0_DRAINAGE_SETTINGS_V2';
 const LEGACY_STORES=['CUL0_DRAINAGE_SURVEY_V2','SURVEY_DATA_STORE','CUALO_DRAINAGE_SURVEY_V3'];
-let data=[]; let currentImage=''; let pendingImagePromise=null; let photoChanged=false; let lastSavedRouteId=null;
+let data=[]; let currentImage=''; let savedImageBeforeEdit=''; let pendingImagePromise=null; let photoChanged=false; let lastSavedRouteId=null;
 const MASTER_EMAIL='binhhu19802014@gmail.com';
 const MASTER_DEVICE_ID='e5bd6766-c82f-4440-a0d0-fd2887dfce08';
 const DEVICE_ID_STORE='CUALO_DEVICE_ID_V1', DEVICE_NAME_STORE='CUALO_DEVICE_NAME_V1';
@@ -479,6 +514,8 @@ function routeAssignmentInfo(id){
 }
 function isRouteAssignedToCurrentDevice(id){
  if(isMasterDevice())return true;
+ const r=routes.find(x=>String(x.id)===String(id));
+ if(r?.sharedSurveyAccess===true)return isAuthorizedDevice();
  const a=routeAssignmentInfo(id);
  if(!a||a.active===false)return false;
  if(a.allDevices===true||String(a.deviceId)==='ALL')return isAuthorizedDevice();
@@ -621,33 +658,19 @@ async function scheduleDelayedAuxLockAfterSuccessfulUpdate(id,kind='survey'){
 async function claimSurveyEditLock(id){
  if(isMasterDevice())return true;
  if(!ensureDeviceCanUse('cập nhật khảo sát'))return false;
- const ref=cloudDb.doc(`${cloudPath()}/config/meta`);
+ const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`),stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
  try{
    await cloudDb.runTransaction(async tx=>{
-     const snap=await tx.get(ref);
-     if(!snap.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
-     const m=snap.data()||{};
-     const auth=(m.authorizedDevices||[]).some(d=>String(d.id)===String(deviceId));
-     if(!auth)throw new Error('Thiết bị chưa được cấp quyền.');
-
-     const assignment=(m.routeAssignments||{})[String(id)];
-     const assignedAll=assignment&&(assignment.allDevices===true||String(assignment.deviceId)==='ALL');
-     const assignedThis=assignment&&String(assignment.deviceId)===String(deviceId);
-     if(!assignment||assignment.active===false||(!assignedAll&&!assignedThis)){
-       throw new Error('Tuyến này chưa được máy chính cấp cho thiết bị này.');
-     }
-
-     const cur=(m.routeLocks||{})[String(id)]||(m.surveyLocks||{})[String(id)];
-     if(isActiveAuxLock(cur)){
-       throw new Error(`Tuyến này đã khóa sau thời gian 60 phút. Chỉ máy chính mới có thể mở lại.`);
-     }
-     // Nếu đang trong 60 phút chờ khóa thì vẫn cho phép cập nhật.
-   });
-   return true;
- }catch(e){
-   alert('Không thể cập nhật khảo sát: '+e.message);
-   return false;
- }
+     const metaSnap=await tx.get(metaRef),stateSnap=await tx.get(stateRef);
+     if(!metaSnap.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
+     const m=metaSnap.data()||{},state=stateSnap.exists?(stateSnap.data()||{}):{};
+     const auth=(m.authorizedDevices||[]).some(d=>String(d.id)===String(deviceId));if(!auth)throw new Error('Thiết bị chưa được cấp quyền.');
+     const a=(m.routeAssignments||{})[String(id)],assignedAll=a&&(a.allDevices===true||String(a.deviceId)==='ALL'),assignedThis=a&&String(a.deviceId)===String(deviceId);
+     const shared=(state.routes||[]).some(r=>String(r.id)===String(id)&&r.sharedSurveyAccess===true);
+     if((!a||a.active===false||(!assignedAll&&!assignedThis))&&!shared)throw new Error('Tuyến này chưa được cấp cho thiết bị và không phải tuyến dùng chung.');
+     const cur=(m.routeLocks||{})[String(id)]||(m.surveyLocks||{})[String(id)];if(isActiveAuxLock(cur))throw new Error('Tuyến đã khóa sau 60 phút. Chỉ máy chính mới có thể mở lại.');
+   });return true;
+ }catch(e){alert('Không thể cập nhật khảo sát: '+e.message);return false;}
 }
 
 async function unlockSurveyForDevices(id){
@@ -809,7 +832,7 @@ function bind(){
    currentImage=imgData;
    $('photoPreview').src=currentImage;
    $('photoPreviewWrap').classList.remove('d-none');
-   if($('photoStatus'))$('photoStatus').textContent='Ảnh mới đã sẵn sàng. Bấm LƯU / CẬP NHẬT KHẢO SÁT.';
+   if($('photoStatus'))$('photoStatus').textContent='Ảnh mới đã sẵn sàng. Nếu chưa đúng, bấm Xóa ảnh đang chọn; nếu đúng, bấm LƯU / CẬP NHẬT KHẢO SÁT.';
    return imgData;
  }).catch(err=>{
    console.error('PHOTO PROCESS ERROR',err);
@@ -826,19 +849,19 @@ function loadRoute(){
  $('routeStart').textContent=r.dau;$('routeEnd').textContent=r.cuoi;$('routeLength').textContent=r.tong;
  const existing=data.find(x=>String(x.idTuyen)===String(r.id));
  if(existing){
-   $('editId').value=String(r.id);$('surveyDate').value=existing.ngay||today();$('surveyStart').value=existing.diemDau||r.dau||'';$('surveyEnd').value=existing.diemCuoi||r.cuoi||'';$('rightLength').value=existing.chieuDaiPhai??existing.chieuDai??r.tong;$('leftLength').value=existing.chieuDaiTrai??0;$('spec').value=existing.quyCach||r.defaultSpec||'';$('width').value=existing.rong??0.5;$('height').value=existing.cao??0;$('mudDepth').value=existing.dayBun??'';$('rightPits').value=existing.hoThuPhai??existing.hoThu??0;$('leftPits').value=existing.hoThuTrai??0;$('level').value=existing.mucDo||'Bình thường';$('notes').value=existing.ghiChu||'';currentImage=existing.hinhAnh||'';
+   $('editId').value=String(r.id);$('surveyDate').value=existing.ngay||today();$('surveyStart').value=existing.diemDau||r.dau||'';$('surveyEnd').value=existing.diemCuoi||r.cuoi||'';$('rightLength').value=existing.chieuDaiPhai??existing.chieuDai??r.tong;$('leftLength').value=existing.chieuDaiTrai??0;$('spec').value=existing.quyCach||r.defaultSpec||'';$('width').value=existing.rong??0.5;$('height').value=existing.cao??0;$('mudDepth').value=existing.dayBun??'';$('rightPits').value=existing.hoThuPhai??existing.hoThu??0;$('leftPits').value=existing.hoThuTrai??0;$('level').value=existing.mucDo||'Bình thường';$('notes').value=existing.ghiChu||'';currentImage=existing.hinhAnh||'';savedImageBeforeEdit=currentImage;
    if($('photo'))$('photo').value=''; pendingImagePromise=null; photoChanged=false;
    if(currentImage){$('photoPreview').src=currentImage;$('photoPreviewWrap').classList.remove('d-none');if($('photoStatus'))$('photoStatus').textContent='Đang dùng ảnh đã lưu. Chọn ảnh mới để thay thế.';}
    else{$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Bản ghi này chưa có ảnh.';}
    $('formTitle').textContent='Cập nhật khảo sát - '+r.name;$('cancelEdit').classList.remove('d-none');
  }else if(!$('editId').value){
-   $('surveyStart').value=r.dau||'';$('surveyEnd').value=r.cuoi||'';$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('spec').value=r.defaultSpec||'';$('surveyDate').value=today();$('width').value=.5;$('height').value=0;$('mudDepth').value='';$('rightPits').value=0;$('leftPits').value=0;$('level').value='Bình thường';$('notes').value='';currentImage='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');
+   $('surveyStart').value=r.dau||'';$('surveyEnd').value=r.cuoi||'';$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('spec').value=r.defaultSpec||'';$('surveyDate').value=today();$('width').value=.5;$('height').value=0;$('mudDepth').value='';$('rightPits').value=0;$('leftPits').value=0;$('level').value='Bình thường';$('notes').value='';currentImage='';savedImageBeforeEdit='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');
  }
 }
 function applyRouteDefaultSpec(){const r=routes.find(x=>String(x.id)===String($('selectRoute').value));if(!r)return alert('Vui lòng chọn tuyến đường trước.');$('spec').value=r.defaultSpec||'';if(!r.defaultSpec)alert('Tuyến này chưa có quy cách mặc định. Bạn có thể nhập trực tiếp hoặc vào Quản lý tuyến để thiết lập.');}
 
 
-function normalizeRoutes(){routes=routes.map((r,i)=>({id:Number(r.id)||i+1,name:String(r.name||'').trim(),dau:String(r.dau||'').trim(),cuoi:String(r.cuoi||'').trim(),tong:Number(r.tong)||0,note:String(r.note||'').trim(),defaultSpec:String(r.defaultSpec||r.quyCach||'').trim(),isSupplemental:mandatoryRouteIds().has(Number(r.id))?false:(r.isSupplemental!==false),createdAt:r.createdAt||'',createdBy:r.createdBy||''})).filter(r=>r.name).sort((a,b)=>a.id-b.id);}
+function normalizeRoutes(){routes=routes.map((r,i)=>({id:Number(r.id)||i+1,name:String(r.name||'').trim(),dau:String(r.dau||'').trim(),cuoi:String(r.cuoi||'').trim(),tong:Number(r.tong)||0,note:String(r.note||'').trim(),defaultSpec:String(r.defaultSpec||r.quyCach||'').trim(),isSupplemental:mandatoryRouteIds().has(Number(r.id))?false:(r.isSupplemental!==false),sharedSurveyAccess:r.sharedSurveyAccess===true,createdAt:r.createdAt||'',createdBy:r.createdBy||'',createdByDeviceId:r.createdByDeviceId||''})).filter(r=>r.name).sort((a,b)=>a.id-b.id);}
 function persistRoutes(){
  try{
    ensure42RoutesLocal(routes);
@@ -846,9 +869,51 @@ function persistRoutes(){
    scheduleCloudPush();
  }catch(e){alert('Không thể lưu danh mục tuyến đường.')}
 }
+function toggleSurveyNewRouteForm(show){
+ const box=$('surveyNewRouteBox');if(!box)return;
+ const shouldShow=typeof show==='boolean'?show:box.classList.contains('d-none');
+ if(shouldShow){if(!ensureDeviceCanUse('thêm tuyến mới'))return;box.classList.remove('d-none');$('surveyNewRouteName')?.focus();}
+ else box.classList.add('d-none');
+}
+function clearSurveyNewRouteForm(){
+ ['surveyNewRouteName','surveyNewRouteStart','surveyNewRouteEnd','surveyNewRouteSpec','surveyNewRouteNote'].forEach(id=>{if($(id))$(id).value='';});
+ if($('surveyNewRouteLength'))$('surveyNewRouteLength').value='0';
+}
+async function saveNewRouteFromSurvey(){
+ if(!ensureDeviceCanUse('thêm tuyến mới'))return false;
+ const name=String($('surveyNewRouteName')?.value||'').trim().toUpperCase();
+ const dau=String($('surveyNewRouteStart')?.value||'').trim(),cuoi=String($('surveyNewRouteEnd')?.value||'').trim();
+ const tong=Math.max(0,Number($('surveyNewRouteLength')?.value||0));
+ const defaultSpec=String($('surveyNewRouteSpec')?.value||'').trim(),note=String($('surveyNewRouteNote')?.value||'').trim();
+ if(!name)return alert('Vui lòng nhập tên tuyến mới.');
+ if(!Number.isFinite(tong))return alert('Chiều dài tuyến không hợp lệ.');
+ const sameName=routes.find(r=>String(r.name||'').trim().toUpperCase()===name);
+ if(sameName&&!confirm(`Đã có tuyến "${sameName.name}" (mã ${sameName.id}). Vẫn tạo thêm tuyến mới?`))return false;
+ if(!cloudDb||!cloudUser||!cloudWorkspace)return alert('Cần kết nối Cloud để thêm tuyến mới dùng chung cho các máy.');
+ try{
+   const stateRef=cloudDb.doc(`${cloudPath()}/state/main`);let createdRoute=null;
+   await cloudDb.runTransaction(async tx=>{
+     const snap=await tx.get(stateRef),obj=snap.exists?(snap.data()||{}):{routes:[],data:[],settings:{}};
+     const remoteRoutes=mergeRoutesOntoBase(Array.isArray(obj.routes)?obj.routes:[]);
+     const maxId=remoteRoutes.reduce((m,r)=>Math.max(m,Number(r.id)||0),0),newId=maxId+1,now=new Date().toISOString();
+     createdRoute={id:newId,name,dau,cuoi,tong,note,defaultSpec,isSupplemental:true,sharedSurveyAccess:true,createdAt:now,createdBy:getUpdateActor(),createdByDeviceId:deviceId,updatedAt:now,updatedBy:getUpdateActor()};
+     remoteRoutes.push(createdRoute);remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
+     tx.set(stateRef,{...obj,version:32,routes:remoteRoutes,updatedAt:now,updatedBy:getUpdateActor()},{merge:false});
+   });
+   if(!createdRoute)throw new Error('Không tạo được tuyến mới.');
+   const fresh=await stateRef.get();if(fresh.exists)applyCloudState(fresh.data()||{});
+   refreshRouteSelect(createdRoute.id);renderRouteTable();render();$('selectRoute').value=String(createdRoute.id);loadRoute();
+   clearSurveyNewRouteForm();toggleSurveyNewRouteForm(false);
+   setSharedDataStatus(`Đã thêm tuyến mới ${createdRoute.id}. ${createdRoute.name} vào dữ liệu chung.`,'success');
+   alert(`ĐÃ THÊM TUYẾN MỚI THÀNH CÔNG\n\nMã tuyến: ${createdRoute.id}\nTên tuyến: ${createdRoute.name}\n\nTuyến đã cập nhật vào Quản lý tuyến và được chọn để nhập số liệu khảo sát.`);
+   return true;
+ }catch(e){console.error('ADD ROUTE FROM SURVEY',e);alert('Không thêm được tuyến mới: '+(e?.message||e));return false;}
+}
+
 function getAssignedRouteIdsForCurrentDevice(){
  if(isMasterDevice())return new Set(routes.map(r=>String(r.id)));
  const ids=new Set();
+ routes.filter(r=>r?.sharedSurveyAccess===true).forEach(r=>ids.add(String(r.id)));
 
  // Ưu tiên meta Cloud hiện tại.
  const assignments=cloudMeta?.routeAssignments||{};
@@ -959,33 +1024,19 @@ async function refreshCloudMeta(){
 async function claimRouteEditLock(id){
  if(isMasterDevice())return true;
  if(!ensureDeviceCanUse('cập nhật tuyến'))return false;
- const ref=cloudDb.doc(`${cloudPath()}/config/meta`);
+ const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`),stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
  try{
    await cloudDb.runTransaction(async tx=>{
-     const snap=await tx.get(ref);
-     if(!snap.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
-     const m=snap.data()||{};
-     const auth=(m.authorizedDevices||[]).some(d=>String(d.id)===String(deviceId));
-     if(!auth)throw new Error('Thiết bị chưa được cấp quyền.');
-
-     const assignment=(m.routeAssignments||{})[String(id)];
-     const assignedAll=assignment&&(assignment.allDevices===true||String(assignment.deviceId)==='ALL');
-     const assignedThis=assignment&&String(assignment.deviceId)===String(deviceId);
-     if(!assignment||assignment.active===false||(!assignedAll&&!assignedThis)){
-       throw new Error('Tuyến này chưa được máy chính cấp cho thiết bị này.');
-     }
-
-     const cur=(m.routeLocks||{})[String(id)]||(m.surveyLocks||{})[String(id)];
-     if(isActiveAuxLock(cur)){
-       throw new Error('Tuyến đã khóa sau thời gian 60 phút. Chỉ máy chính mới có thể mở lại.');
-     }
-     // Trong thời gian chờ 60 phút vẫn cho các máy phụ cập nhật.
-   });
-   return true;
- }catch(e){
-   alert('Không thể cập nhật tuyến: '+e.message);
-   return false;
- }
+     const metaSnap=await tx.get(metaRef),stateSnap=await tx.get(stateRef);
+     if(!metaSnap.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
+     const m=metaSnap.data()||{},state=stateSnap.exists?(stateSnap.data()||{}):{};
+     const auth=(m.authorizedDevices||[]).some(d=>String(d.id)===String(deviceId));if(!auth)throw new Error('Thiết bị chưa được cấp quyền.');
+     const a=(m.routeAssignments||{})[String(id)],assignedAll=a&&(a.allDevices===true||String(a.deviceId)==='ALL'),assignedThis=a&&String(a.deviceId)===String(deviceId);
+     const shared=(state.routes||[]).some(r=>String(r.id)===String(id)&&r.sharedSurveyAccess===true);
+     if((!a||a.active===false||(!assignedAll&&!assignedThis))&&!shared)throw new Error('Tuyến này chưa được cấp cho thiết bị và không phải tuyến dùng chung.');
+     const cur=(m.routeLocks||{})[String(id)]||(m.surveyLocks||{})[String(id)];if(isActiveAuxLock(cur))throw new Error('Tuyến đã khóa sau 60 phút. Chỉ máy chính mới có thể mở lại.');
+   });return true;
+ }catch(e){alert('Không thể cập nhật tuyến: '+e.message);return false;}
 }
 
 async function unlockRouteForDevices(id){
@@ -1192,7 +1243,7 @@ async function saveNewRoute(){
      remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
      tx.set(ref,{
        ...obj,
-       version:30,
+       version:32,
        routes:remoteRoutes,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
@@ -1316,7 +1367,7 @@ function renderRouteTable(){
      <tr data-route-row="${Number(r.id)}">
        <td>${i+1}</td>
        <td>${Number(r.id)}</td>
-       <td class="fw-bold">${escapeHtml(r.name||'')} ${mandatoryRouteIds().has(Number(r.id))?'':'<span class="badge text-bg-success ms-1">Tuyến bổ sung</span>'}</td>
+       <td class="fw-bold">${escapeHtml(r.name||'')} ${mandatoryRouteIds().has(Number(r.id))?'':'<span class="badge text-bg-success ms-1">Tuyến bổ sung</span>'} ${r.sharedSurveyAccess===true?'<span class="badge text-bg-info ms-1">Dùng chung</span>':''}</td>
        <td>${escapeHtml(r.dau||'')}</td>
        <td>${escapeHtml(r.cuoi||'')}</td>
        <td>${Number(r.tong||0).toLocaleString('vi-VN')}</td>
@@ -1530,6 +1581,8 @@ async function saveRecord(e){
      }
    }
 
+   savedImageBeforeEdit=currentImage||'';
+   photoChanged=false;
    lastSavedRouteId=r.id;
    $('editId').value=String(r.id);
    $('searchText').value=''; $('filterLevel').value='';
@@ -1565,7 +1618,7 @@ async function recalcAll(){
        return y;
      });
      tx.set(ref,{
-       ...obj,version:30,data:remoteData,
+       ...obj,version:32,data:remoteData,
        settings:{...(obj.settings||{}),mudPrice,pitPrice},
        updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()
      },{merge:false});
@@ -1589,17 +1642,46 @@ function editRecord(id){
  $('spec').value=x.quyCach;$('width').value=x.rong;$('height').value=x.cao??0;$('mudDepth').value=x.dayBun;
  $('rightPits').value=x.hoThuPhai??x.hoThu??0;$('leftPits').value=x.hoThuTrai??0;
  $('level').value=x.mucDo;$('notes').value=x.ghiChu||'';
- currentImage=x.hinhAnh||'';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';
+ currentImage=x.hinhAnh||'';savedImageBeforeEdit=currentImage;pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';
  if(currentImage){$('photoPreview').src=currentImage;$('photoPreviewWrap').classList.remove('d-none');if($('photoStatus'))$('photoStatus').textContent='Đang dùng ảnh đã lưu. Chọn ảnh mới để thay thế.';}
  else{$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Bản ghi này chưa có ảnh.';}
  $('formTitle').textContent='Chỉnh sửa khảo sát';$('cancelEdit').classList.remove('d-none');window.scrollTo({top:0,behavior:'smooth'});
 }
-function removeCurrentPhoto(){
- currentImage='';pendingImagePromise=null;photoChanged=true;if($('photo'))$('photo').value='';
- $('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');
- if($('photoStatus'))$('photoStatus').textContent='Đã chọn xóa ảnh. Bấm LƯU / CẬP NHẬT để xác nhận.';
+function refreshPhotoPreviewUI(){
+ if(currentImage){
+   $('photoPreview').src=currentImage;
+   $('photoPreviewWrap').classList.remove('d-none');
+ }else{
+   $('photoPreview').removeAttribute('src');
+   $('photoPreviewWrap').classList.add('d-none');
+ }
 }
-function resetForm(){$('surveyForm').reset();$('editId').value='';$('surveyDate').value=today();$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('width').value=.5;$('height').value=0;currentImage='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');loadRoute();}
+function discardNewPhotoSelection(){
+ pendingImagePromise=null;
+ if($('photo'))$('photo').value='';
+ currentImage=savedImageBeforeEdit||'';
+ photoChanged=false;
+ refreshPhotoPreviewUI();
+ if($('photoStatus'))$('photoStatus').textContent=savedImageBeforeEdit
+   ?'Đã bỏ ảnh vừa chọn. Ảnh cũ đã được khôi phục và chưa bị thay đổi.'
+   :'Đã bỏ ảnh vừa chọn. Chưa có ảnh được lưu.';
+}
+function markSavedPhotoForDeletion(){
+ if(!savedImageBeforeEdit&&!currentImage){
+   if($('photoStatus'))$('photoStatus').textContent='Không có ảnh đã lưu để xóa.';
+   return;
+ }
+ if(!confirm('Xóa ảnh hiện tại khỏi bản ghi? Ảnh sẽ chỉ bị xóa sau khi bấm LƯU / CẬP NHẬT KHẢO SÁT.'))return;
+ pendingImagePromise=null;
+ if($('photo'))$('photo').value='';
+ currentImage='';
+ savedImageBeforeEdit='';
+ photoChanged=true;
+ refreshPhotoPreviewUI();
+ if($('photoStatus'))$('photoStatus').textContent='Đã đánh dấu xóa ảnh. Bấm LƯU / CẬP NHẬT KHẢO SÁT để xác nhận xóa.';
+}
+function removeCurrentPhoto(){markSavedPhotoForDeletion();}
+function resetForm(){$('surveyForm').reset();$('editId').value='';$('surveyDate').value=today();$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('width').value=.5;$('height').value=0;currentImage='';savedImageBeforeEdit='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');loadRoute();}
 async function deleteRecord(id){if(!ensureMaster('xóa dữ liệu khảo sát'))return;if(confirm('Xóa bản ghi tuyến này?')){data=data.filter(x=>String(x.idTuyen)!==String(id));persist();if(cloudDb&&cloudUser&&cloudWorkspace)await cloudPushPhoto(id,'');render()}}
 function clearAll(){if(!ensureMaster('xóa toàn bộ dữ liệu khảo sát'))return;if(confirm('Xóa TOÀN BỘ dữ liệu khảo sát? Hành động này không thể hoàn tác nếu chưa sao lưu.')){data=[];persist();render()}}
 function showImage(id){const x=data.find(r=>String(r.idTuyen)===String(id));if(!x?.hinhAnh)return;$('modalImage').src=x.hinhAnh;new bootstrap.Modal($('imgModal')).show()}
@@ -1996,7 +2078,7 @@ async function loadCloudStateAndWatch(){
      const safeRoutes=mergeRoutesOntoBase(Array.isArray(rawState.routes)?rawState.routes:[]);
      await stateRef.set({
        routes:safeRoutes,
-       version:30,
+       version:32,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
      },{merge:true});
@@ -2158,7 +2240,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:30,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:32,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -2293,7 +2375,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
 
        tx.set(ref,{
          ...remote,
-         version:30,
+         version:32,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor(),
          routes:remoteRoutes,
@@ -2315,7 +2397,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
          const safeRoutes=mergeRoutesOntoBase(Array.isArray(remote.routes)?remote.routes:routes);
          tx.set(ref,{
            ...remote,
-           version:30,
+           version:32,
            updatedAt:new Date().toISOString(),
            updatedBy:getUpdateActor(),
            routes:safeRoutes,
