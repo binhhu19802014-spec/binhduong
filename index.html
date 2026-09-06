@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V16 Render 42 tuyến trước phân quyền</title>
+<title>QL Khảo sát Mương Cửa Lò - V17 Máy chính độc lập trước Firebase</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -110,7 +110,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
   </div></div>
  </div>
 </main>
-<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến được dựng trước độc lập với Cloud; trạng thái Sửa/Khóa/Cấp quyền được gắn sau. Máy chính sửa không giới hạn; máy phụ chỉ sửa tuyến được cấp 1 lần rồi khóa.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến dựng trước. Máy chính được nhận diện cục bộ trước Firebase và luôn có Sửa + Cấp tuyến; Firebase chỉ bổ sung danh sách máy phụ, trạng thái khóa và đồng bộ Cloud.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
 <div class="card border p-3 mb-3 shadow-none"><input type="hidden" id="routeEditId"><div class="row g-2"><div class="col-md-2"><label class="form-label">Mã/STT tuyến</label><input id="routeIdInput" type="number" min="1" class="form-control" placeholder="Tự tăng nếu bỏ trống"></div><div class="col-md-4"><label class="form-label">Tên tuyến đường</label><input id="routeNameInput" class="form-control" placeholder="VD: NGUYỄN HUỆ"></div><div class="col-md-3"><label class="form-label">Điểm đầu</label><input id="routeStartInput" class="form-control"></div><div class="col-md-3"><label class="form-label">Điểm cuối</label><input id="routeEndInput" class="form-control"></div><div class="col-md-2"><label class="form-label">Chiều dài (m)</label><input id="routeLengthInput" type="number" min="0" step="0.01" class="form-control"></div><div class="col-md-4"><label class="form-label">Ghi chú tuyến</label><input id="routeNoteInput" class="form-control" placeholder="Khu vực, loại tuyến..."></div><div class="col-md-4"><label class="form-label">Quy cách mương mặc định</label><input id="routeSpecInput" class="form-control" list="specOptions" placeholder="VD: Mương BTCT đúc sẵn, có tấm đan"></div><div class="col-md-8 d-flex align-items-end gap-2"><button class="btn btn-main" type="button" onclick="saveRoute()">Lưu / cập nhật tuyến</button><button class="btn btn-outline-secondary" type="button" onclick="resetRouteForm()">Nhập tuyến mới</button><button class="btn btn-outline-success" type="button" onclick="exportRoutesExcel()">Xuất danh mục</button><label class="btn btn-outline-primary mb-0">Nhập Excel<input id="routeImportFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="importRoutesExcel(event)"></label></div></div></div>
 <div class="row g-2 mb-2"><div class="col-md-6"><input id="routeSearch" class="form-control" placeholder="Tìm tên tuyến, điểm đầu, điểm cuối..." oninput="renderRouteTable()"></div><div class="col-md-6 text-md-end small text-muted align-self-center">Tổng số tuyến: <b id="routeCount">0</b></div></div>
 <div class="table-responsive" style="max-height:430px"><table class="table table-bordered table-hover align-middle small"><thead class="table-light"><tr><th>STT</th><th>Mã</th><th>Tên tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Chiều dài (m)</th><th>Ghi chú</th><th>Quy cách mặc định</th><th>Thao tác</th></tr></thead><tbody id="routeTableBody"></tbody></table></div>
@@ -242,7 +242,23 @@ const LEGACY_STORES=['CUL0_DRAINAGE_SURVEY_V2','SURVEY_DATA_STORE','CUALO_DRAINA
 let data=[]; let currentImage=''; let pendingImagePromise=null; let photoChanged=false; let lastSavedRouteId=null;
 const MASTER_EMAIL='binhhu19802014@gmail.com';
 const DEVICE_ID_STORE='CUALO_DEVICE_ID_V1', DEVICE_NAME_STORE='CUALO_DEVICE_NAME_V1';
+const MASTER_DEVICE_MARKER_STORE='CUALO_MASTER_DEVICE_MARKER_V17';
 let deviceId='',deviceName='',currentUser=null;
+
+function localMasterDeviceId(){return String(localStorage.getItem(MASTER_DEVICE_MARKER_STORE)||'')}
+function isLocalMasterDevice(){return !!deviceId && localMasterDeviceId()===String(deviceId)}
+function rememberThisDeviceAsMaster(){if(deviceId)localStorage.setItem(MASTER_DEVICE_MARKER_STORE,String(deviceId))}
+function forgetThisDeviceAsMaster(){if(isLocalMasterDevice())localStorage.removeItem(MASTER_DEVICE_MARKER_STORE)}
+function hasMasterEmailSession(){
+ const email=String(cloudUser?.email||cloudAuth?.currentUser?.email||'').toLowerCase();
+ return email===MASTER_EMAIL;
+}
+function reconcileMasterIdentityFromMeta(){
+ if(!cloudMeta)return;
+ const owner=String(cloudMeta.ownerDeviceId||'');
+ if(owner && owner===String(deviceId))rememberThisDeviceAsMaster();
+ else if(owner && owner!==String(deviceId) && isLocalMasterDevice())forgetThisDeviceAsMaster();
+}
 function makeDeviceId(){
  if(window.crypto?.randomUUID)return crypto.randomUUID();
  return 'DEV-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
@@ -263,10 +279,17 @@ function saveDeviceName(){
  updateDeviceAccessUI();
 }
 function getUpdateActor(){return isMasterDevice()?`MÁY CHÍNH • ${deviceName}`:`${deviceName} • ${deviceId.slice(0,8)}`}
-function isMasterDevice(){return !!(cloudMeta&&cloudMeta.ownerDeviceId===deviceId&&cloudUser?.email?.toLowerCase()===MASTER_EMAIL)}
+function isMasterDevice(){
+ if(isLocalMasterDevice())return true;
+ if(cloudMeta && String(cloudMeta.ownerDeviceId||'')===String(deviceId) && hasMasterEmailSession()){
+   rememberThisDeviceAsMaster();return true;
+ }
+ return false;
+}
 function authorizedDeviceEntry(){return (cloudMeta?.authorizedDevices||[]).find(d=>String(d.id)===String(deviceId))}
 function isAuthorizedDevice(){return isMasterDevice()||!!authorizedDeviceEntry()}
 function ensureDeviceCanUse(action='thao tác'){
+ if(isMasterDevice())return true;
  if(!cloudDb||!cloudUser||!cloudWorkspace){alert(`Chưa kết nối Cloud. Vui lòng kết nối tài khoản ${MASTER_EMAIL} trước khi ${action}.`);return false;}
  if(!isAuthorizedDevice()){alert('Thiết bị này chưa được máy chính cấp quyền sử dụng. Hãy gửi yêu cầu cấp quyền.');return false;}
  return true;
@@ -378,6 +401,7 @@ function normalizeSurveyRow(x){
    chieuDaiTrai:Number(x.chieuDaiTrai ?? x['Chiều dài trái tuyến (m)'] ?? x['Chiều dài trái'] ?? 0)||0,
    quyCach:x.quyCach ?? x['Quy cách'] ?? x['Quy cách cấu trúc mương'] ?? '',
    rong:Number(x.rong ?? x['Chiều rộng mương'] ?? x['Chiều rộng mương (m)'] ?? 0.5)||0.5,
+   cao:Number(x.cao ?? x['Chiều cao mương'] ?? x['Chiều cao mương (m)'] ?? 0)||0,
    dayBun:Number(x.dayBun ?? x['Độ dày bùn'] ?? x['Chiều dày bùn lắng thực tế (m)'] ?? 0)||0,
    hoThu:Number(x.hoThu ?? x['Số hố thu'] ?? x['Số lượng hố thu cần vệ sinh (hố)'] ?? 0)||0,
    hoThuPhai:Number(x.hoThuPhai ?? x['Số hố thu phải tuyến'] ?? x['Hố thu phải'] ?? x.hoThu ?? x['Số hố thu'] ?? 0)||0,
@@ -508,7 +532,7 @@ function nextRouteId(){return routes.length?Math.max(...routes.map(r=>Number(r.i
 async function refreshCloudMeta(){
  if(!cloudDb||!cloudWorkspace)return;
  const s=await cloudDb.doc(`${cloudPath()}/config/meta`).get();
- if(s.exists){cloudMeta=s.data();updateDeviceAccessUI();renderPermissionPanel();renderRouteTable();}
+ if(s.exists){cloudMeta=s.data();reconcileMasterIdentityFromMeta();updateDeviceAccessUI();renderPermissionPanel();renderRouteTable();}
 }
 async function claimRouteEditLock(id){
  if(isMasterDevice())return true;
@@ -543,8 +567,25 @@ async function unlockRouteForDevices(id){
  renderRouteTable();renderPermissionPanel();cloudSetStatus('Đã mở tuyến cho thiết bị phụ sửa đúng 1 lần.','success');
 }
 
+function routeAssignNeedsCloud(routeId){
+ if(!isMasterDevice())return alert('Chỉ máy chính được cấp tuyến.');
+ if(!cloudDb||!cloudUser||!cloudWorkspace){
+   alert(`Máy chính đã được nhận diện. Để cấp tuyến ${routeId}, hãy vào Cloud → Kết nối để tải danh sách máy phụ.`);
+   try{bootstrap.Modal.getOrCreateInstance($('cloudModal')).show()}catch{}
+   return;
+ }
+ const devices=Array.isArray(cloudMeta?.authorizedDevices)?cloudMeta.authorizedDevices:[];
+ if(!devices.length){
+   alert('Chưa có máy phụ nào được cấp quyền. Hãy duyệt máy phụ trong Cloud trước.');
+   try{bootstrap.Modal.getOrCreateInstance($('cloudModal')).show()}catch{}
+   return;
+ }
+ renderRouteTable();
+}
+
 async function assignRouteToDevice(routeId,deviceIdToAssign){
  if(!ensureMaster('cấp tuyến cho thiết bị'))return;
+ if(!cloudDb||!cloudWorkspace||!cloudMeta)return routeAssignNeedsCloud(routeId);
  if(!deviceIdToAssign)return alert('Vui lòng chọn thiết bị được cấp tuyến.');
  const dev=(cloudMeta.authorizedDevices||[]).find(d=>String(d.id)===String(deviceIdToAssign));
  if(!dev)return alert('Thiết bị chưa được cấp quyền sử dụng phần mềm.');
@@ -719,13 +760,17 @@ function updateRouteActionCells(){
          html+=` <select id="routeAssign_${id}" class="form-select form-select-sm d-inline-block" style="width:150px">
            <option value="">-- Cấp cho máy --</option>${options}</select>
            <button class="btn btn-success btn-sm" onclick="assignRouteToDevice(${id},$('routeAssign_${id}').value)">Cấp tuyến</button>`;
+       }else{
+         html+=` <button class="btn btn-success btn-sm" onclick="routeAssignNeedsCloud(${id})">Cấp tuyến</button>`;
        }
 
        if(assignment?.active!==false&&assignment?.deviceId){
          html+=` <button class="btn btn-outline-secondary btn-sm" onclick="revokeRouteAssignment(${id})">Thu hồi</button>
            <div class="small text-primary mt-1">Đã cấp: ${escapeHtml(assignment.deviceName||assignment.deviceId)}</div>`;
-       }else{
+       }else if(cloudMeta){
          html+=` <div class="small text-muted mt-1">Chưa cấp cho máy phụ</div>`;
+       }else{
+         html+=` <div class="small text-muted mt-1">Đang tải danh sách máy phụ...</div>`;
        }
 
        if(lock?.locked){
@@ -959,8 +1004,14 @@ function renderPermissionPanel(){
  const p=$('permissionPanel');if(!p)return;
  p.classList.toggle('d-none',!isMasterDevice());
  if(!isMasterDevice())return;
- const pending=cloudMeta.pendingDevices||[],auth=cloudMeta.authorizedDevices||[];
+ const pending=Array.isArray(cloudMeta?.pendingDevices)?cloudMeta.pendingDevices:[],
+       auth=Array.isArray(cloudMeta?.authorizedDevices)?cloudMeta.authorizedDevices:[];
  const pd=$('pendingDeviceList'),ad=$('authorizedDeviceList');
+ if(!cloudMeta){
+   if(pd)pd.innerHTML='<span class="text-muted">Đang tải danh sách yêu cầu...</span>';
+   if(ad)ad.innerHTML='<span class="text-muted">Đang tải danh sách máy phụ...</span>';
+   return;
+ }
  if(pd)pd.innerHTML=pending.length?pending.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.id)}</code><div class="mt-1"><button class="btn btn-sm btn-success" onclick="grantDeviceAccess('${escapeHtml(d.id)}')">Cấp quyền</button></div></div>`).join(''):'<span class="text-muted">Không có yêu cầu mới.</span>';
  if(ad)ad.innerHTML=auth.length?auth.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.id)}</code><div class="mt-1"><button class="btn btn-sm btn-outline-danger" onclick="revokeDeviceAccess('${escapeHtml(d.id)}')">Thu hồi</button></div></div>`).join(''):'<span class="text-muted">Chưa cấp quyền thiết bị phụ nào.</span>';
 }
@@ -981,13 +1032,16 @@ async function cloudConnect(){
      metaSnap=await metaRef.get();
    }
    cloudMeta=metaSnap.data()||{};
+   reconcileMasterIdentityFromMeta();
    if(!cloudMeta.ownerDeviceId){
      if(confirm('Workspace chưa có máy chính. Bạn có muốn đặt THIẾT BỊ NÀY làm MÁY CHÍNH không?')){
        cloudMeta.ownerDeviceId=deviceId;cloudMeta.ownerDeviceName=deviceName;cloudMeta.authorizedDevices=cloudMeta.authorizedDevices||[];cloudMeta.pendingDevices=cloudMeta.pendingDevices||[];cloudMeta.routeLocks=cloudMeta.routeLocks||{};cloudMeta.surveyLocks=cloudMeta.surveyLocks||{};cloudMeta.routeAssignments=cloudMeta.routeAssignments||{};
        await metaRef.set({ownerDeviceId:deviceId,ownerDeviceName:deviceName,authorizedDevices:cloudMeta.authorizedDevices,pendingDevices:cloudMeta.pendingDevices,routeLocks:cloudMeta.routeLocks,surveyLocks:cloudMeta.surveyLocks,routeAssignments:cloudMeta.routeAssignments},{merge:true});
+       rememberThisDeviceAsMaster();
      }
    }
    metaSnap=await metaRef.get();cloudMeta=metaSnap.data()||{};
+   reconcileMasterIdentityFromMeta();
    if(!isMasterDevice()&&!isAuthorizedDevice())await requestDeviceAccess();
    const stateSnap=await stateRef.get();
    if(stateSnap.exists){
@@ -1022,7 +1076,7 @@ async function cloudConnect(){
        }catch(e){cloudSetStatus('Không thể tự phục hồi danh mục tuyến Cloud: '+e.message,'danger')}
      }
    },e=>cloudSetStatus('Mất đồng bộ dữ liệu: '+e.message,'danger'));
-   if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=metaRef.onSnapshot(s=>{if(s.exists){cloudMeta=s.data();updateDeviceAccessUI();renderPermissionPanel();refreshRouteSelect($('selectRoute').value);renderRouteTable();}},e=>cloudSetStatus('Mất đồng bộ phân quyền: '+e.message,'danger'));
+   if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=metaRef.onSnapshot(s=>{if(s.exists){cloudMeta=s.data();reconcileMasterIdentityFromMeta();updateDeviceAccessUI();renderPermissionPanel();refreshRouteSelect($('selectRoute').value);renderRouteTable();}},e=>cloudSetStatus('Mất đồng bộ phân quyền: '+e.message,'danger'));
    await cloudLoadAndWatchPhotos();
    updateDeviceAccessUI();renderPermissionPanel();
    cloudSetStatus(isMasterDevice()?`Đã kết nối • MÁY CHÍNH • ${MASTER_EMAIL}`:isAuthorizedDevice()?`Đã kết nối • Thiết bị đã được cấp quyền`:`Đã kết nối • Đang chờ máy chính cấp quyền`,'success');
@@ -1031,7 +1085,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:14,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:17,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -1120,6 +1174,8 @@ async function cloudDisconnect(){
 }
 function initCloudUI(){
  initDeviceIdentity();
+ updateDeviceAccessUI();
+ renderPermissionPanel();
  const fixedWs=(window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.workspace)||'CUALO-2026';
  if($('cloudWorkspace'))$('cloudWorkspace').value=fixedWs;
  if($('cloudEmail'))$('cloudEmail').value=MASTER_EMAIL;
