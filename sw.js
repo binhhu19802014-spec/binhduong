@@ -1,4 +1,4 @@
-const CACHE='cualo-drainage-v13-mandatory-42-cloud';
+const CACHE='cualo-drainage-v14-base42-before-cloud';
 const APP=['/','/index.html','/firebase-config.js','/manifest.webmanifest','/icon-192.png','/icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));

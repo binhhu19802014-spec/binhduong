@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V13 42 tuyến bắt buộc Cloud</title>
+<title>QL Khảo sát Mương Cửa Lò - V14 Khởi tạo 42 tuyến trước Cloud</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -110,7 +110,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
   </div></div>
  </div>
 </main>
-<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến gốc là danh mục bắt buộc và được đồng bộ Cloud. Máy chính sửa không giới hạn; máy phụ chỉ sửa tuyến được cấp 1 lần rồi khóa.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến gốc được tạo ngay khi mở phần mềm và không thể bị Cloud rỗng ghi đè. Máy chính sửa không giới hạn; máy phụ chỉ sửa tuyến được cấp 1 lần rồi khóa.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
 <div class="card border p-3 mb-3 shadow-none"><input type="hidden" id="routeEditId"><div class="row g-2"><div class="col-md-2"><label class="form-label">Mã/STT tuyến</label><input id="routeIdInput" type="number" min="1" class="form-control" placeholder="Tự tăng nếu bỏ trống"></div><div class="col-md-4"><label class="form-label">Tên tuyến đường</label><input id="routeNameInput" class="form-control" placeholder="VD: NGUYỄN HUỆ"></div><div class="col-md-3"><label class="form-label">Điểm đầu</label><input id="routeStartInput" class="form-control"></div><div class="col-md-3"><label class="form-label">Điểm cuối</label><input id="routeEndInput" class="form-control"></div><div class="col-md-2"><label class="form-label">Chiều dài (m)</label><input id="routeLengthInput" type="number" min="0" step="0.01" class="form-control"></div><div class="col-md-4"><label class="form-label">Ghi chú tuyến</label><input id="routeNoteInput" class="form-control" placeholder="Khu vực, loại tuyến..."></div><div class="col-md-4"><label class="form-label">Quy cách mương mặc định</label><input id="routeSpecInput" class="form-control" list="specOptions" placeholder="VD: Mương BTCT đúc sẵn, có tấm đan"></div><div class="col-md-8 d-flex align-items-end gap-2"><button class="btn btn-main" type="button" onclick="saveRoute()">Lưu / cập nhật tuyến</button><button class="btn btn-outline-secondary" type="button" onclick="resetRouteForm()">Nhập tuyến mới</button><button class="btn btn-outline-success" type="button" onclick="exportRoutesExcel()">Xuất danh mục</button><label class="btn btn-outline-primary mb-0">Nhập Excel<input id="routeImportFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="importRoutesExcel(event)"></label></div></div></div>
 <div class="row g-2 mb-2"><div class="col-md-6"><input id="routeSearch" class="form-control" placeholder="Tìm tên tuyến, điểm đầu, điểm cuối..." oninput="renderRouteTable()"></div><div class="col-md-6 text-md-end small text-muted align-self-center">Tổng số tuyến: <b id="routeCount">0</b></div></div>
 <div class="table-responsive" style="max-height:430px"><table class="table table-bordered table-hover align-middle small"><thead class="table-light"><tr><th>STT</th><th>Mã</th><th>Tên tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Chiều dài (m)</th><th>Ghi chú</th><th>Quy cách mặc định</th><th>Thao tác</th></tr></thead><tbody id="routeTableBody"></tbody></table></div>
@@ -158,6 +158,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 </div></div></div></div>
 
 <script>
+const $=id=>document.getElementById(id);
 const defaultRoutes = [
         {id: 1, name: "LÊ THỊ BẠCH CÁT", dau: "Nút giao đường chưa ghi tên, khu vực phía tây", cuoi: "Giao Phạm Huy", tong: 1300},
         {id: 2, name: "NGUYỄN THÂN MẾM", dau: "Giao Lê Thị Bạch Cát", cuoi: "Giao Nguyễn Xí", tong: 2400},
@@ -203,7 +204,12 @@ const defaultRoutes = [
         {id: 42, name: "YẾT KIÊU", dau: "Giao trục dọc chưa ghi nhãn phía tây", cuoi: "Giao Bình Minh", tong: 2166}
 ];
 const ROUTES_STORE="SURVEY_ROUTES_STORE_V3";
-let routes=[];
+function cloneBaseRoutes(){
+ return defaultRoutes.map(r=>({...r,note:'',defaultSpec:''}));
+}
+// Quy tắc V14: 42 tuyến tồn tại NGAY KHI JavaScript khởi tạo.
+// Local/Cloud chỉ được merge vào danh mục này, tuyệt đối không thay thế toàn bộ.
+let routes=cloneBaseRoutes();
 const STORE='CUALO_DRAINAGE_SURVEY_V4', SETTINGS='CUL0_DRAINAGE_SETTINGS_V2';
 const LEGACY_STORES=['CUL0_DRAINAGE_SURVEY_V2','SURVEY_DATA_STORE','CUALO_DRAINAGE_SURVEY_V3'];
 let data=[]; let currentImage=''; let pendingImagePromise=null; let photoChanged=false; let lastSavedRouteId=null;
@@ -254,21 +260,29 @@ function countMandatoryRoutes(list){
  const ids=new Set((Array.isArray(list)?list:[]).map(r=>Number(r?.id)).filter(Number.isFinite));
  return defaultRoutes.reduce((n,r)=>n+(ids.has(Number(r.id))?1:0),0);
 }
-function ensure42RoutesLocal(sourceRoutes=routes){
+function mergeRoutesOntoBase(sourceRoutes){
  const incoming=Array.isArray(sourceRoutes)?sourceRoutes:[];
- const incomingById=new Map(incoming.map(r=>[Number(r?.id),r]).filter(([id])=>Number.isFinite(id)));
- const merged=defaultRoutes.map(def=>{
+ const incomingById=new Map();
+ incoming.forEach(r=>{
+   const id=Number(r?.id);
+   if(Number.isFinite(id))incomingById.set(id,r);
+ });
+ const mandatory=mandatoryRouteIds();
+ const merged=cloneBaseRoutes().map(def=>{
    const existing=incomingById.get(Number(def.id));
    return existing
      ? {...def,...existing,id:Number(def.id),note:existing.note??'',defaultSpec:existing.defaultSpec??''}
-     : {...def,note:'',defaultSpec:''};
+     : def;
  });
- const mandatory=mandatoryRouteIds();
+ // Giữ các tuyến do máy chính bổ sung ngoài 42 tuyến gốc.
  incoming.forEach(r=>{
    const id=Number(r?.id);
-   if(Number.isFinite(id)&&!mandatory.has(id))merged.push(r);
+   if(Number.isFinite(id)&&!mandatory.has(id))merged.push({...r,id});
  });
- routes=merged;
+ return merged;
+}
+function ensure42RoutesLocal(sourceRoutes=routes){
+ routes=mergeRoutesOntoBase(sourceRoutes);
  normalizeRoutes();
  try{localStorage.setItem(ROUTES_STORE,JSON.stringify(routes))}catch{}
  return countMandatoryRoutes(routes);
@@ -383,13 +397,24 @@ function persist(){
  }
 }
 function initApp(){
- data=loadSurveyData();
- routes=safeParse(localStorage.getItem(ROUTES_STORE),null);
- if(!Array.isArray(routes))routes=[];
+ // BƯỚC 1: luôn tạo đủ 42 tuyến trước mọi nguồn dữ liệu khác.
+ routes=cloneBaseRoutes();
+ // BƯỚC 2: chỉ merge dữ liệu Local lên 42 tuyến; Local rỗng không thể xóa danh mục.
+ const localRoutes=safeParse(localStorage.getItem(ROUTES_STORE),null);
+ if(Array.isArray(localRoutes)&&localRoutes.length)routes=mergeRoutesOntoBase(localRoutes);
  ensure42RoutesLocal(routes);
+
+ data=loadSurveyData();
  refreshRouteSelect();
  renderRouteTable();
- const st=safeParse(localStorage.getItem(SETTINGS),{}); if(st.mudPrice)$('cfgMudPrice').value=st.mudPrice;if(st.pitPrice)$('cfgPitPrice').value=st.pitPrice;$('surveyDate').value=today(); bind(); render(); renderRouteTable();
+
+ const st=safeParse(localStorage.getItem(SETTINGS),{});
+ if(st.mudPrice)$('cfgMudPrice').value=st.mudPrice;
+ if(st.pitPrice)$('cfgPitPrice').value=st.pitPrice;
+ $('surveyDate').value=today();
+ bind();
+ render();
+ renderRouteTable();
 }
 function bind(){
  $('selectRoute').addEventListener('change',loadRoute);
@@ -563,7 +588,10 @@ function deleteRoute(id){
  if(!confirm(msg))return;routes=routes.filter(r=>r.id!==id);persistRoutes();refreshRouteSelect();renderRouteTable();render();
 }
 function renderRouteTable(){
- if(countMandatoryRoutes(routes)<defaultRoutes.length)ensure42RoutesLocal(routes);
+ if(!Array.isArray(routes)||countMandatoryRoutes(routes)<defaultRoutes.length){
+   routes=mergeRoutesOntoBase(Array.isArray(routes)?routes:[]);
+   ensure42RoutesLocal(routes);
+ }
  const q=($('routeSearch')?.value||'').toLowerCase().trim();
  const rows=routes.filter(r=>!q||[r.name,r.dau,r.cuoi,r.note].join(' ').toLowerCase().includes(q)).sort((a,b)=>a.id-b.id);
  if($('routeCount'))$('routeCount').textContent=routes.length;
@@ -838,11 +866,13 @@ async function cloudConnect(){
      const rawState=stateSnap.data()||{};
      const mustRepair=cloudNeedsMandatoryRepair(rawState);
      applyCloudState(rawState);
+     // Mọi máy đều giữ 42 tuyến ở bộ nhớ; CHỈ máy chính được ghi bản phục hồi lên Firestore.
      if(isMasterDevice() && mustRepair){
        await stateRef.set(buildCloudState(),{merge:false});
-       cloudSetStatus(`Cloud thiếu tuyến. Máy chính đã tự phục hồi đủ ${defaultRoutes.length} tuyến bắt buộc và giữ nguyên dữ liệu khảo sát.`,'success');
+       cloudSetStatus(`Đã phục hồi đủ ${defaultRoutes.length} tuyến lên Cloud; dữ liệu khảo sát, chiều cao và ảnh hiện có vẫn được giữ.`,'success');
      }
    }else{
+     routes=mergeRoutesOntoBase(routes);
      ensure42RoutesLocal(routes);
      if(isMasterDevice()){
        await stateRef.set(buildCloudState(),{merge:false});
@@ -860,7 +890,7 @@ async function cloudConnect(){
      if(isMasterDevice()&&needsRepair){
        try{
          await stateRef.set(buildCloudState(),{merge:false});
-         cloudSetStatus(`Phát hiện Cloud thiếu tuyến và đã tự phục hồi đủ ${defaultRoutes.length} tuyến.`,'success');
+         cloudSetStatus(`Phát hiện Cloud thiếu tuyến; máy chính đã phục hồi đủ ${defaultRoutes.length} tuyến mà không xóa dữ liệu khảo sát.`,'success');
        }catch(e){cloudSetStatus('Không thể tự phục hồi danh mục tuyến Cloud: '+e.message,'danger')}
      }
    },e=>cloudSetStatus('Mất đồng bộ dữ liệu: '+e.message,'danger'));
@@ -873,18 +903,22 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:13,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:routes,data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:14,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
    cloudApplying=true;
-   if(Array.isArray(obj.routes)){
-     ensure42RoutesLocal(obj.routes);
-     localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));
-     refreshRouteSelect($('selectRoute')?.value||'');
+   const cloudRoutes=Array.isArray(obj?.routes)?obj.routes:[];
+   // Cloud chỉ cập nhật dữ liệu của 42 tuyến. routes=[] bị bỏ qua hoàn toàn.
+   if(cloudRoutes.length){
+     routes=mergeRoutesOntoBase(cloudRoutes);
    }else{
-     ensure42RoutesLocal(routes);
+     routes=mergeRoutesOntoBase(routes);
    }
+   ensure42RoutesLocal(routes);
+   try{localStorage.setItem(ROUTES_STORE,JSON.stringify(routes))}catch{}
+   refreshRouteSelect($('selectRoute')?.value||'');
+
    if(Array.isArray(obj.data)){
      const localPhotos=new Map(data.map(x=>[String(x.idTuyen),x.hinhAnh||'']));
      data=obj.data.map(normalizeSurveyRow).filter(Boolean).map(x=>{
