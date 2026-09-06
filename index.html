@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V22 Cấp quyền nhiều máy & đổi tên thiết bị</title>
+<title>QL Khảo sát Mương Cửa Lò - V23 Cấp tuyến tất cả máy, khóa máy cập nhật đầu tiên</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -172,7 +172,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
        </div>
      </div>
    </div>
-   <div class="alert alert-info py-2 small mt-3 mb-0"><b>Sau khi cấp quyền thiết bị:</b> vào <b>Quản lý tuyến</b> → chọn máy phụ → <b>Cấp tuyến</b>. Việc cấp nhiều máy hoặc đổi tên thiết bị không xóa/ghi đè dữ liệu khảo sát.</div>
+   <div class="alert alert-info py-2 small mt-3 mb-0"><b>Sau khi cấp quyền thiết bị:</b> vào <b>Quản lý tuyến</b>. Có thể cấp tuyến cho 1 máy hoặc <b>TẤT CẢ MÁY</b>. Ở chế độ tất cả máy, mọi máy phụ được thao tác cho đến khi 1 máy cập nhật trước; ngay sau đó tuyến khóa chung cho các máy phụ còn lại. Dữ liệu khảo sát không bị xóa/ghi đè.</div>
  </div>
 
  <hr><details><summary class="fw-bold">Cách sử dụng phân quyền</summary><div class="small mt-2">
@@ -353,7 +353,9 @@ function syncPermissionCacheFromMeta(){
  const auth=(cloudMeta.authorizedDevices||[]).find(d=>String(d.id)===String(deviceId));
  if(!auth){writePermissionCache(null);return}
  const assignedIds=Object.entries(cloudMeta.routeAssignments||{})
-   .filter(([rid,a])=>a&&a.active!==false&&String(a.deviceId)===String(deviceId))
+   .filter(([rid,a])=>a&&a.active!==false&&(
+      a.allDevices===true || String(a.deviceId)==='ALL' || String(a.deviceId)===String(deviceId)
+   ))
    .map(([rid])=>String(rid));
  const surveyLocks={},routeLocks={};
  assignedIds.forEach(rid=>{
@@ -458,13 +460,15 @@ function routeAssignmentInfo(id){
  const live=cloudMeta?.routeAssignments?.[rid];
  if(live)return live;
  const c=readPermissionCache();
- if(c?.assignedIds?.includes(rid))return {deviceId,active:true,cached:true};
+ if(c?.assignedIds?.includes(rid))return {deviceId:'ALL',allDevices:true,active:true,cached:true};
  return null;
 }
 function isRouteAssignedToCurrentDevice(id){
  if(isMasterDevice())return true;
  const a=routeAssignmentInfo(id);
- return !!(a && a.active!==false && String(a.deviceId)===String(deviceId));
+ if(!a||a.active===false)return false;
+ if(a.allDevices===true||String(a.deviceId)==='ALL')return isAuthorizedDevice();
+ return String(a.deviceId)===String(deviceId);
 }
 function mandatoryRouteIds(){return new Set(defaultRoutes.map(r=>Number(r.id)))}
 function countMandatoryRoutes(list){
@@ -504,7 +508,11 @@ function cloudNeedsMandatoryRepair(obj){
 }
 function surveyLockInfo(id){
  const rid=String(id);
- return cloudMeta?.surveyLocks?.[rid]||readPermissionCache()?.surveyLocks?.[rid]||null;
+ return cloudMeta?.surveyLocks?.[rid]
+   || cloudMeta?.routeLocks?.[rid]
+   || readPermissionCache()?.surveyLocks?.[rid]
+   || readPermissionCache()?.routeLocks?.[rid]
+   || null;
 }
 async function claimSurveyEditLock(id){
  if(isMasterDevice())return true;
@@ -516,21 +524,53 @@ async function claimSurveyEditLock(id){
      const m=snap.data()||{};
      const auth=(m.authorizedDevices||[]).some(d=>String(d.id)===String(deviceId));
      if(!auth)throw new Error('Thiết bị chưa được cấp quyền.');
-     const locks={...(m.surveyLocks||{})};const cur=locks[String(id)];
-     if(cur?.locked)throw new Error(`Khảo sát tuyến này đã khóa sau lần cập nhật trước bởi ${cur.byDeviceName||'thiết bị khác'}.`);
-     locks[String(id)]={locked:true,byDeviceId:deviceId,byDeviceName:deviceName,lockedAt:new Date().toISOString()};
-     tx.update(ref,{surveyLocks:locks});
+
+     const assignment=(m.routeAssignments||{})[String(id)];
+     const assignedAll=assignment&&(assignment.allDevices===true||String(assignment.deviceId)==='ALL');
+     const assignedThis=assignment&&String(assignment.deviceId)===String(deviceId);
+     if(!assignment||assignment.active===false||(!assignedAll&&!assignedThis)){
+       throw new Error('Tuyến này chưa được máy chính cấp cho thiết bị này.');
+     }
+
+     const routeLocks={...(m.routeLocks||{})};
+     const surveyLocks={...(m.surveyLocks||{})};
+     const cur=routeLocks[String(id)]||surveyLocks[String(id)];
+     if(cur?.locked){
+       throw new Error(`Tuyến này đã khóa sau lần cập nhật trước bởi ${cur.byDeviceName||'thiết bị khác'}.`);
+     }
+
+     const sharedLock={
+       locked:true,
+       byDeviceId:deviceId,
+       byDeviceName:deviceName,
+       lockScope:'ALL_AUX_DEVICES',
+       updateKind:'survey',
+       lockedAt:new Date().toISOString()
+     };
+     routeLocks[String(id)]=sharedLock;
+     surveyLocks[String(id)]=sharedLock;
+     tx.update(ref,{routeLocks,surveyLocks,permissionUpdatedAt:new Date().toISOString()});
    });
    await refreshCloudMeta();return true;
- }catch(e){alert('Không thể cập nhật khảo sát: '+e.message);return false;}
+ }catch(e){
+   alert('Không thể cập nhật khảo sát: '+e.message);
+   return false;
+ }
 }
+
 async function unlockSurveyForDevices(id){
  if(!ensureMaster('mở khóa khảo sát'))return;
- const locks={...(cloudMeta.surveyLocks||{})};
- locks[String(id)]={locked:false,unlockedAt:new Date().toISOString(),unlockedByDeviceId:deviceId};
- cloudMeta.surveyLocks=locks;
- await cloudDb.doc(`${cloudPath()}/config/meta`).set({surveyLocks:locks},{merge:true});
- render();renderPermissionPanel();cloudSetStatus('Đã mở khảo sát tuyến cho thiết bị phụ cập nhật đúng 1 lần.','success');
+ const routeLocks={...(cloudMeta.routeLocks||{})};
+ const surveyLocks={...(cloudMeta.surveyLocks||{})};
+ const unlocked={locked:false,unlockedAt:new Date().toISOString(),unlockedByDeviceId:deviceId};
+ routeLocks[String(id)]=unlocked;
+ surveyLocks[String(id)]=unlocked;
+ cloudMeta.routeLocks=routeLocks;cloudMeta.surveyLocks=surveyLocks;
+ await cloudDb.doc(`${cloudPath()}/config/meta`).set({
+   routeLocks,surveyLocks,permissionUpdatedAt:new Date().toISOString()
+ },{merge:true});
+ render();renderRouteTable();renderPermissionPanel();
+ cloudSetStatus('Đã mở lại tuyến cho tất cả máy phụ được cấp tuyến; máy cập nhật đầu tiên sẽ khóa lại.','success');
 }
 function updateDeviceAccessUI(){
  const role=isMasterDevice()?'MÁY CHÍNH':isAuthorizedDevice()?'ĐÃ ĐƯỢC CẤP QUYỀN':'CHƯA ĐƯỢC CẤP QUYỀN';
@@ -713,27 +753,55 @@ async function claimRouteEditLock(id){
      const m=snap.data()||{};
      const auth=(m.authorizedDevices||[]).some(d=>String(d.id)===String(deviceId));
      if(!auth)throw new Error('Thiết bị chưa được cấp quyền.');
+
      const assignment=(m.routeAssignments||{})[String(id)];
-     if(!assignment || assignment.active===false || String(assignment.deviceId)!==String(deviceId)){
+     const assignedAll=assignment&&(assignment.allDevices===true||String(assignment.deviceId)==='ALL');
+     const assignedThis=assignment&&String(assignment.deviceId)===String(deviceId);
+     if(!assignment||assignment.active===false||(!assignedAll&&!assignedThis)){
        throw new Error('Tuyến này chưa được máy chính cấp cho thiết bị này.');
      }
-     const locks={...(m.routeLocks||{})};const cur=locks[String(id)];
-     if(cur?.locked)throw new Error(`Tuyến đã khóa sau lần cập nhật trước bởi ${cur.byDeviceName||'thiết bị khác'}.`);
-     locks[String(id)]={locked:true,byDeviceId:deviceId,byDeviceName:deviceName,lockedAt:new Date().toISOString()};
-     tx.update(ref,{routeLocks:locks});
+
+     const routeLocks={...(m.routeLocks||{})};
+     const surveyLocks={...(m.surveyLocks||{})};
+     const cur=routeLocks[String(id)]||surveyLocks[String(id)];
+     if(cur?.locked){
+       throw new Error(`Tuyến đã khóa sau lần cập nhật trước bởi ${cur.byDeviceName||'thiết bị khác'}.`);
+     }
+
+     const sharedLock={
+       locked:true,
+       byDeviceId:deviceId,
+       byDeviceName:deviceName,
+       lockScope:'ALL_AUX_DEVICES',
+       updateKind:'route',
+       lockedAt:new Date().toISOString()
+     };
+     routeLocks[String(id)]=sharedLock;
+     surveyLocks[String(id)]=sharedLock;
+     tx.update(ref,{routeLocks,surveyLocks,permissionUpdatedAt:new Date().toISOString()});
    });
    await refreshCloudMeta();return true;
- }catch(e){alert('Không thể cập nhật tuyến: '+e.message);return false;}
+ }catch(e){
+   alert('Không thể cập nhật tuyến: '+e.message);
+   return false;
+ }
 }
+
 async function unlockRouteForDevices(id){
  if(!ensureMaster('mở khóa tuyến'))return;
  const a=routeAssignmentInfo(id);
- if(!a||a.active===false)return alert('Hãy cấp tuyến cho một thiết bị trước khi mở khóa.');
- const locks={...(cloudMeta.routeLocks||{})};
- locks[String(id)]={locked:false,unlockedAt:new Date().toISOString(),unlockedByDeviceId:deviceId};
- cloudMeta.routeLocks=locks;
- await cloudDb.doc(`${cloudPath()}/config/meta`).set({routeLocks:locks},{merge:true});
- renderRouteTable();renderPermissionPanel();cloudSetStatus('Đã mở tuyến cho thiết bị phụ sửa đúng 1 lần.','success');
+ if(!a||a.active===false)return alert('Hãy cấp tuyến trước khi mở khóa.');
+ const routeLocks={...(cloudMeta.routeLocks||{})};
+ const surveyLocks={...(cloudMeta.surveyLocks||{})};
+ const unlocked={locked:false,unlockedAt:new Date().toISOString(),unlockedByDeviceId:deviceId};
+ routeLocks[String(id)]=unlocked;
+ surveyLocks[String(id)]=unlocked;
+ cloudMeta.routeLocks=routeLocks;cloudMeta.surveyLocks=surveyLocks;
+ await cloudDb.doc(`${cloudPath()}/config/meta`).set({
+   routeLocks,surveyLocks,permissionUpdatedAt:new Date().toISOString()
+ },{merge:true});
+ renderRouteTable();renderPermissionPanel();render();
+ cloudSetStatus('Đã mở lại tuyến: tất cả máy phụ được cấp tuyến có thể cập nhật, máy nào lưu trước sẽ khóa tuyến cho các máy còn lại.','success');
 }
 
 function routeAssignNeedsCloud(routeId){
@@ -755,21 +823,75 @@ function routeAssignNeedsCloud(routeId){
 async function assignRouteToDevice(routeId,deviceIdToAssign){
  if(!ensureMaster('cấp tuyến cho thiết bị'))return;
  if(!cloudDb||!cloudWorkspace||!cloudMeta)return routeAssignNeedsCloud(routeId);
- if(!deviceIdToAssign)return alert('Vui lòng chọn thiết bị được cấp tuyến.');
- const dev=(cloudMeta.authorizedDevices||[]).find(d=>String(d.id)===String(deviceIdToAssign));
- if(!dev)return alert('Thiết bị chưa được cấp quyền sử dụng phần mềm.');
+ if(!deviceIdToAssign)return alert('Vui lòng chọn thiết bị hoặc TẤT CẢ MÁY.');
+
+ const devices=Array.isArray(cloudMeta.authorizedDevices)?cloudMeta.authorizedDevices:[];
  const assignments={...(cloudMeta.routeAssignments||{})};
- assignments[String(routeId)]={
-   deviceId:dev.id,authUid:dev.authUid||'',deviceName:dev.name||('Thiết bị '+String(dev.id).slice(0,8)),
-   active:true,assignedAt:new Date().toISOString(),assignedByDeviceId:deviceId
- };
- const locks={...(cloudMeta.routeLocks||{})};
- locks[String(routeId)]={locked:false,assignedDeviceId:dev.id,unlockedAt:new Date().toISOString(),unlockedByDeviceId:deviceId};
- cloudMeta.routeAssignments=assignments;cloudMeta.routeLocks=locks;
- await cloudDb.doc(`${cloudPath()}/config/meta`).set({routeAssignments:assignments,routeLocks:locks,permissionUpdatedAt:new Date().toISOString()},{merge:true});
- renderRouteTable();refreshRouteSelect();
- cloudSetStatus(`Đã cấp tuyến ${routeId} cho ${dev.name||dev.id}. Thiết bị được sửa đúng 1 lần.`,'success');
+ const routeLocks={...(cloudMeta.routeLocks||{})};
+ const surveyLocks={...(cloudMeta.surveyLocks||{})};
+
+ if(String(deviceIdToAssign)==='ALL'){
+   if(!devices.length)return alert('Chưa có máy phụ nào được cấp quyền sử dụng phần mềm.');
+   assignments[String(routeId)]={
+     deviceId:'ALL',
+     deviceName:`TẤT CẢ ${devices.length} MÁY ĐƯỢC CẤP QUYỀN`,
+     allDevices:true,
+     authUids:devices.map(d=>d.authUid).filter(Boolean),
+     deviceIds:devices.map(d=>d.id).filter(Boolean),
+     active:true,
+     assignedAt:new Date().toISOString(),
+     assignedByDeviceId:deviceId
+   };
+   const unlocked={
+     locked:false,
+     assignmentScope:'ALL_AUX_DEVICES',
+     unlockedAt:new Date().toISOString(),
+     unlockedByDeviceId:deviceId
+   };
+   routeLocks[String(routeId)]=unlocked;
+   surveyLocks[String(routeId)]=unlocked;
+ }else{
+   const dev=devices.find(d=>String(d.id)===String(deviceIdToAssign));
+   if(!dev)return alert('Thiết bị chưa được cấp quyền sử dụng phần mềm.');
+   assignments[String(routeId)]={
+     deviceId:dev.id,
+     authUid:dev.authUid||'',
+     deviceName:dev.name||('Thiết bị '+String(dev.id).slice(0,8)),
+     allDevices:false,
+     active:true,
+     assignedAt:new Date().toISOString(),
+     assignedByDeviceId:deviceId
+   };
+   const unlocked={
+     locked:false,
+     assignedDeviceId:dev.id,
+     unlockedAt:new Date().toISOString(),
+     unlockedByDeviceId:deviceId
+   };
+   routeLocks[String(routeId)]=unlocked;
+   surveyLocks[String(routeId)]=unlocked;
+ }
+
+ cloudMeta.routeAssignments=assignments;
+ cloudMeta.routeLocks=routeLocks;
+ cloudMeta.surveyLocks=surveyLocks;
+
+ await cloudDb.doc(`${cloudPath()}/config/meta`).set({
+   routeAssignments:assignments,
+   routeLocks,
+   surveyLocks,
+   permissionUpdatedAt:new Date().toISOString()
+ },{merge:true});
+
+ renderRouteTable();refreshRouteSelect();render();
+ if(String(deviceIdToAssign)==='ALL'){
+   cloudSetStatus(`Đã cấp tuyến ${routeId} cho TẤT CẢ ${devices.length} máy. Máy nào cập nhật trước sẽ khóa tuyến cho toàn bộ máy phụ còn lại.`,'success');
+ }else{
+   const dev=devices.find(d=>String(d.id)===String(deviceIdToAssign));
+   cloudSetStatus(`Đã cấp tuyến ${routeId} cho ${dev?.name||deviceIdToAssign}. Thiết bị được sửa đúng 1 lần.`,'success');
+ }
 }
+
 async function revokeRouteAssignment(routeId){
  if(!ensureMaster('thu hồi tuyến đã cấp'))return;
  const assignments={...(cloudMeta.routeAssignments||{})};
@@ -912,7 +1034,9 @@ function updateRouteActionCells(){
 
      if(master){
        const devices=Array.isArray(cloudMeta?.authorizedDevices)?cloudMeta.authorizedDevices:[];
-       const options=devices.map(d=>`
+       const options=`
+         <option value="ALL" ${assignment?.active!==false&&(assignment?.allDevices===true||String(assignment?.deviceId)==='ALL')?'selected':''}>★ TẤT CẢ MÁY ĐÃ CẤP QUYỀN</option>`+
+         devices.map(d=>`
          <option value="${escapeHtml(d.id)}"
            ${assignment?.active!==false&&String(assignment?.deviceId)===String(d.id)?'selected':''}>
            ${escapeHtml(d.name||String(d.id).slice(0,8))}
@@ -926,16 +1050,20 @@ function updateRouteActionCells(){
        }
 
        if(devices.length){
-         html+=` <select id="routeAssign_${id}" class="form-select form-select-sm d-inline-block" style="width:150px">
-           <option value="">-- Cấp cho máy --</option>${options}</select>
-           <button class="btn btn-success btn-sm" onclick="assignRouteToDevice(${id},$('routeAssign_${id}').value)">Cấp tuyến</button>`;
+         html+=` <select id="routeAssign_${id}" class="form-select form-select-sm d-inline-block" style="width:190px">
+           <option value="">-- Chọn phạm vi cấp --</option>${options}</select>
+           <button class="btn btn-success btn-sm" onclick="assignRouteToDevice(${id},$('routeAssign_${id}').value)">Cấp tuyến</button>
+           <button class="btn btn-success btn-sm" onclick="assignRouteToDevice(${id},'ALL')">Cấp tất cả máy</button>`;
        }else{
          html+=` <button class="btn btn-success btn-sm" onclick="routeAssignNeedsCloud(${id})">Cấp tuyến</button>`;
        }
 
        if(assignment?.active!==false&&assignment?.deviceId){
          html+=` <button class="btn btn-outline-secondary btn-sm" onclick="revokeRouteAssignment(${id})">Thu hồi</button>
-           <div class="small text-primary mt-1">Đã cấp: ${escapeHtml(assignment.deviceName||assignment.deviceId)}</div>`;
+           <div class="small text-primary mt-1">Đã cấp: ${escapeHtml(assignment.deviceName||assignment.deviceId)}</div>
+           ${(assignment.allDevices===true||String(assignment.deviceId)==='ALL')
+             ?'<div class="small text-danger mt-1">Chế độ dùng chung: tất cả máy được thao tác cho đến khi 1 máy cập nhật trước; sau đó khóa toàn bộ máy phụ.</div>'
+             :''}`;
        }else if(cloudMeta){
          html+=` <div class="small text-muted mt-1">Chưa cấp cho máy phụ</div>`;
        }else{
@@ -953,8 +1081,8 @@ function updateRouteActionCells(){
        }else if(lock?.locked){
          html='<span class="badge text-bg-secondary">Đã khóa sau 1 lần sửa</span>';
        }else{
-         html=`<button class="btn btn-outline-primary btn-sm" onclick="editRoute(${id})">Sửa 1 lần</button>
-           <div class="small text-primary mt-1">Đã được cấp tuyến</div>`;
+         html=`<button class="btn btn-outline-primary btn-sm" onclick="editRoute(${id})">Sửa / cập nhật</button>
+           <div class="small text-primary mt-1">${assignment?.allDevices===true||String(assignment?.deviceId)==='ALL'?'Tuyến cấp cho tất cả máy • Máy cập nhật đầu tiên sẽ khóa tuyến':'Đã được cấp tuyến • Sửa 1 lần'}</div>`;
        }
      }else{
        // Chưa kết nối Cloud/chưa được cấp quyền: vẫn hiển thị dòng tuyến, chỉ khóa thao tác.
@@ -1067,7 +1195,9 @@ function calc(x){x.khoiLuongBun=Number((x.chieuDai*x.rong*x.dayBun).toFixed(2));
 function recalcAll(){localStorage.setItem(SETTINGS,JSON.stringify({mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}));data.forEach(calc);persist();render();}
 
 function render(){const q=$('searchText').value.toLowerCase().trim(),lv=$('filterLevel').value; const rows=data.filter(x=>(!lv||x.mucDo===lv)&&(!q||[x.ten,x.diemDau,x.diemCuoi,x.quyCach,x.ghiChu].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.idTuyen-b.idTuyen); let totalMud=0,totalCost=0,totalPits=0,totalLen=0,severe=0; data.forEach(x=>{totalMud+=Number(x.khoiLuongBun)||0;totalCost+=Number(x.thanhTien)||0;totalPits+=Number(x.hoThu)||0;totalLen+=Number(x.chieuDai)||0;if(x.mucDo!=='Bình thường')severe++}); $('kpiRoutes').textContent=`${data.length}/${routes.length}`;$('kpiLength').textContent=totalLen.toLocaleString('vi-VN')+' m';$('kpiMud').textContent=totalMud.toFixed(2)+' m³';$('kpiPits').textContent=totalPits.toLocaleString('vi-VN');$('kpiSevere').textContent=severe;$('kpiCost').textContent=money(totalCost);
- const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="17" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • H=${Number(x.cao||0)}m • bùn=${x.dayBun}m</span></td><td class="fw-bold">${Number(x.cao||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap">${(()=>{const sl=surveyLockInfo(x.idTuyen);if(isMasterDevice())return `<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa</button>${sl?.locked?` <button class="btn btn-warning btn-sm" onclick="unlockSurveyForDevices(${x.idTuyen})">Mở cho máy khác sửa</button>`:''}`;if(!isAuthorizedDevice())return '<span class="badge text-bg-warning">Chưa cấp quyền thiết bị</span>';if(!isRouteAssignedToCurrentDevice(x.idTuyen))return '<span class="badge text-bg-light border">Đã cấp quyền máy • Chưa cấp tuyến</span>';return sl?.locked?`<span class="badge text-bg-secondary">Đã khóa</span>`:`<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa 1 lần</button>`})()}</td></tr>`}).join('');}
+ const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="17" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • H=${Number(x.cao||0)}m • bùn=${x.dayBun}m</span></td><td class="fw-bold">${Number(x.cao||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap">${(()=>{const sl=surveyLockInfo(x.idTuyen);if(isMasterDevice())return `<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa</button>${sl?.locked?` <button class="btn btn-warning btn-sm" onclick="unlockSurveyForDevices(${x.idTuyen})">Mở cho máy khác sửa</button>`:''}`;if(!isAuthorizedDevice())return '<span class="badge text-bg-warning">Chưa cấp quyền thiết bị</span>';if(!isRouteAssignedToCurrentDevice(x.idTuyen))return '<span class="badge text-bg-light border">Đã cấp quyền máy • Chưa cấp tuyến</span>';return sl?.locked
+ ?`<span class="badge text-bg-secondary">Đã khóa bởi ${escapeHtml(sl.byDeviceName||'máy khác')}</span>`
+ :`<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa / cập nhật</button>`})()}</td></tr>`}).join('');}
 function editRecord(id){
  if(!ensureDeviceCanUse('sửa khảo sát'))return;
  const sl=surveyLockInfo(id);if(!isMasterDevice()&&sl?.locked)return alert(`Khảo sát tuyến này đã khóa sau lần cập nhật bởi ${sl.byDeviceName||'thiết bị khác'}. Chỉ máy chính có thể mở lại.`);
@@ -1601,7 +1731,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:22,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:23,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -1711,7 +1841,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
        }
        tx.set(ref,{
          ...remote,
-         version:22,
+         version:23,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor(),
          routes:remoteRoutes,
