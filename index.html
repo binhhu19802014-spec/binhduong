@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V32 Xóa/chọn lại ảnh khảo sát</title>
+<title>QL Khảo sát Mương Cửa Lò - V33 Sửa xóa tuyến máy chủ</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -898,7 +898,7 @@ async function saveNewRouteFromSurvey(){
      const maxId=remoteRoutes.reduce((m,r)=>Math.max(m,Number(r.id)||0),0),newId=maxId+1,now=new Date().toISOString();
      createdRoute={id:newId,name,dau,cuoi,tong,note,defaultSpec,isSupplemental:true,sharedSurveyAccess:true,createdAt:now,createdBy:getUpdateActor(),createdByDeviceId:deviceId,updatedAt:now,updatedBy:getUpdateActor()};
      remoteRoutes.push(createdRoute);remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
-     tx.set(stateRef,{...obj,version:32,routes:remoteRoutes,updatedAt:now,updatedBy:getUpdateActor()},{merge:false});
+     tx.set(stateRef,{...obj,version:33,routes:remoteRoutes,updatedAt:now,updatedBy:getUpdateActor()},{merge:false});
    });
    if(!createdRoute)throw new Error('Không tạo được tuyến mới.');
    const fresh=await stateRef.get();if(fresh.exists)applyCloudState(fresh.data()||{});
@@ -1243,7 +1243,7 @@ async function saveNewRoute(){
      remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
      tx.set(ref,{
        ...obj,
-       version:32,
+       version:33,
        routes:remoteRoutes,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
@@ -1325,15 +1325,104 @@ function resetRouteForm(){
  if($('routeIdInput'))$('routeIdInput').readOnly=false;
  updateRouteFormMode();
 }
-function deleteRoute(id){
+async function deleteRoute(id){
  if(!ensureMaster('xóa tuyến'))return;
- if(mandatoryRouteIds().has(Number(id))){
+ id=Number(id);
+ if(!Number.isFinite(id))return;
+
+ // 42 tuyến gốc bắt buộc vẫn được bảo vệ.
+ if(mandatoryRouteIds().has(id)){
    alert('Đây là một trong 42 tuyến gốc bắt buộc nên không thể xóa. Máy chính vẫn có thể sửa thông tin tuyến.');
    return;
  }
+
+ const r=routes.find(x=>Number(x.id)===id);
+ if(!r)return alert('Không tìm thấy tuyến cần xóa.');
+
  const linked=data.filter(x=>String(x.idTuyen)===String(id)).length;
- const msg=linked?`Tuyến này đang có ${linked} bản ghi khảo sát. Xóa tuyến sẽ KHÔNG xóa bản ghi khảo sát cũ nhưng tuyến sẽ không còn trong danh mục. Tiếp tục?`:'Xóa tuyến này khỏi danh mục?';
- if(!confirm(msg))return;routes=routes.filter(r=>r.id!==id);persistRoutes();refreshRouteSelect();renderRouteTable();render();
+ const msg=linked
+   ?`Xóa tuyến bổ sung "${r.name}" khỏi Quản lý tuyến?\n\nTuyến đang có ${linked} bản ghi khảo sát. Dữ liệu khảo sát cũ sẽ ĐƯỢC GIỮ LẠI để tránh mất số liệu; chỉ danh mục tuyến, quyền cấp tuyến và trạng thái khóa sẽ bị xóa.`
+   :`Xóa tuyến bổ sung "${r.name}" khỏi Quản lý tuyến?`;
+ if(!confirm(msg))return;
+
+ try{
+   // Nếu đang kết nối Cloud, xóa tuyến trực tiếp trên Cloud bằng transaction.
+   if(cloudDb&&cloudUser&&cloudWorkspace){
+     const stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
+     const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
+
+     await cloudDb.runTransaction(async tx=>{
+       // Firestore yêu cầu đọc trước rồi mới ghi.
+       const stateSnap=await tx.get(stateRef);
+       const metaSnap=await tx.get(metaRef);
+
+       const state=stateSnap.exists?(stateSnap.data()||{}):{};
+       const meta=metaSnap.exists?(metaSnap.data()||{}):{};
+
+       const remoteRoutes=(Array.isArray(state.routes)?state.routes:[])
+         .filter(x=>Number(x.id)!==id);
+
+       // Không xóa data khảo sát cũ để bảo toàn số liệu.
+       const routeAssignments={...(meta.routeAssignments||{})};
+       const routeLocks={...(meta.routeLocks||{})};
+       const surveyLocks={...(meta.surveyLocks||{})};
+
+       delete routeAssignments[String(id)];
+       delete routeLocks[String(id)];
+       delete surveyLocks[String(id)];
+
+       tx.set(stateRef,{
+         ...state,
+         version:33,
+         routes:remoteRoutes,
+         updatedAt:new Date().toISOString(),
+         updatedBy:getUpdateActor()
+       },{merge:false});
+
+       if(metaSnap.exists){
+         tx.set(metaRef,{
+           ...meta,
+           routeAssignments,
+           routeLocks,
+           surveyLocks,
+           permissionUpdatedAt:new Date().toISOString()
+         },{merge:false});
+       }
+     });
+
+     // Đọc lại bản Cloud để máy chính dùng đúng danh mục đã xóa.
+     const fresh=await stateRef.get();
+     if(fresh.exists)applyCloudState(fresh.data()||{});
+     await refreshCloudMeta().catch(()=>{});
+   }else{
+     // Chế độ offline: xóa cục bộ; khi kết nối lại cần đồng bộ Cloud để xóa trên máy khác.
+     routes=routes.filter(x=>Number(x.id)!==id);
+     normalizeRoutes();
+     localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));
+   }
+
+   // Bảo đảm local không còn tuyến bổ sung vừa xóa.
+   routes=routes.filter(x=>Number(x.id)!==id);
+   normalizeRoutes();
+   try{localStorage.setItem(ROUTES_STORE,JSON.stringify(routes))}catch{}
+
+   refreshRouteSelect();
+   renderRouteTable();
+   render();
+
+   setSharedDataStatus(
+     cloudDb&&cloudUser&&cloudWorkspace
+       ?`Đã xóa tuyến bổ sung ${id}. ${r.name} khỏi dữ liệu chung.`
+       :`Đã xóa tuyến ${id}. ${r.name} trên máy chính (chưa kết nối Cloud).`,
+     'success'
+   );
+
+   alert(`ĐÃ XÓA TUYẾN THÀNH CÔNG\n\n${id}. ${r.name}${linked?`\n\nĐã giữ lại ${linked} bản ghi khảo sát cũ.`:''}`);
+ }catch(e){
+   console.error('DELETE ROUTE ERROR',e);
+   setSharedDataStatus('Xóa tuyến lỗi: '+(e?.message||e),'danger');
+   alert('Không xóa được tuyến: '+(e?.message||e));
+ }
 }
 function renderRouteTable(){
  updateRouteFormMode();
@@ -1442,7 +1531,7 @@ function updateRouteActionCells(){
 
        // 42 tuyến gốc không cho xóa; tuyến bổ sung ngoài 42 mới có nút Xóa.
        if(!mandatoryRouteIds().has(id)){
-         html+=` <button class="btn btn-outline-danger btn-sm" onclick="deleteRoute(${id})">Xóa</button>`;
+         html+=` <button class="btn btn-outline-danger btn-sm" onclick="deleteRoute(${id})">Xóa tuyến</button>`;
        }
 
        if(devices.length){
@@ -1618,7 +1707,7 @@ async function recalcAll(){
        return y;
      });
      tx.set(ref,{
-       ...obj,version:32,data:remoteData,
+       ...obj,version:33,data:remoteData,
        settings:{...(obj.settings||{}),mudPrice,pitPrice},
        updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()
      },{merge:false});
@@ -2078,7 +2167,7 @@ async function loadCloudStateAndWatch(){
      const safeRoutes=mergeRoutesOntoBase(Array.isArray(rawState.routes)?rawState.routes:[]);
      await stateRef.set({
        routes:safeRoutes,
-       version:32,
+       version:33,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
      },{merge:true});
@@ -2240,7 +2329,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:32,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:33,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -2375,7 +2464,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
 
        tx.set(ref,{
          ...remote,
-         version:32,
+         version:33,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor(),
          routes:remoteRoutes,
@@ -2397,7 +2486,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
          const safeRoutes=mergeRoutesOntoBase(Array.isArray(remote.routes)?remote.routes:routes);
          tx.set(ref,{
            ...remote,
-           version:32,
+           version:33,
            updatedAt:new Date().toISOString(),
            updatedBy:getUpdateActor(),
            routes:safeRoutes,
