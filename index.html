@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - 1 tài khoản & phân quyền thiết bị</title>
+<title>QL Khảo sát Mương Cửa Lò - V11 Đồng bộ ảnh & chiều cao</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -558,7 +558,18 @@ async function saveRecord(e){
      justSaved.hinhAnh=currentImage;
      try{localStorage.setItem(STORE,JSON.stringify(data))}catch(e){console.warn('PHOTO VERIFY CACHE',e)}
    }
-   if(cloudDb&&cloudUser&&cloudWorkspace){const photoOk=await cloudPushPhoto(r.id,currentImage||'');if(!photoOk)setSaveStatus('Đã lưu dữ liệu trên máy nhưng ảnh Cloud chưa đồng bộ.','warning');}
+   if(cloudDb&&cloudUser&&cloudWorkspace){
+     // Đẩy dữ liệu khảo sát (bao gồm chiều cao mương) lên Cloud ngay lập tức.
+     const stateOk=await cloudPushState(true);
+     if(!stateOk){
+       setSaveStatus('Đã lưu trên máy nhưng dữ liệu Cloud chưa đồng bộ.','warning');
+     }
+     // Sau khi state đã có bản ghi tuyến, mới đẩy ảnh riêng.
+     const photoOk=await cloudPushPhoto(r.id,currentImage||'');
+     if(!photoOk){
+       setSaveStatus('Đã lưu dữ liệu nhưng ảnh Cloud chưa đồng bộ.','warning');
+     }
+   }
 
    lastSavedRouteId=r.id;
    $('editId').value=String(r.id);
@@ -600,7 +611,36 @@ function resetForm(){$('surveyForm').reset();$('editId').value='';$('surveyDate'
 async function deleteRecord(id){if(!ensureMaster('xóa dữ liệu khảo sát'))return;if(confirm('Xóa bản ghi tuyến này?')){data=data.filter(x=>String(x.idTuyen)!==String(id));persist();if(cloudDb&&cloudUser&&cloudWorkspace)await cloudPushPhoto(id,'');render()}}
 function clearAll(){if(!ensureMaster('xóa toàn bộ dữ liệu khảo sát'))return;if(confirm('Xóa TOÀN BỘ dữ liệu khảo sát? Hành động này không thể hoàn tác nếu chưa sao lưu.')){data=[];persist();render()}}
 function showImage(id){const x=data.find(r=>String(r.idTuyen)===String(id));if(!x?.hinhAnh)return;$('modalImage').src=x.hinhAnh;new bootstrap.Modal($('imgModal')).show()}
-function compressImage(file,maxW,quality){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const scale=Math.min(1,maxW/img.width);const c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext('2d').drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',quality))};img.onerror=reject;img.src=e.target.result};reader.onerror=reject;reader.readAsDataURL(file)})}
+function compressImage(file,maxW,quality){
+ return new Promise((resolve,reject)=>{
+   const reader=new FileReader();
+   reader.onload=e=>{
+     const img=new Image();
+     img.onload=()=>{
+       let targetW=Math.min(maxW||640,img.width), q=Math.min(quality||0.48,0.55), out='';
+       const make=()=>{
+         const scale=Math.min(1,targetW/img.width);
+         const c=document.createElement('canvas');
+         c.width=Math.max(1,Math.round(img.width*scale));
+         c.height=Math.max(1,Math.round(img.height*scale));
+         c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+         out=c.toDataURL('image/jpeg',q);
+       };
+       make();
+       // Giữ ảnh dưới khoảng 700 KB base64 để an toàn với giới hạn document Firestore.
+       let guard=0;
+       while(out.length>700000 && guard<6){
+         targetW=Math.max(320,Math.round(targetW*0.82));
+         q=Math.max(0.30,q-0.05);
+         make();guard++;
+       }
+       resolve(out);
+     };
+     img.onerror=reject;img.src=e.target.result;
+   };
+   reader.onerror=reject;reader.readAsDataURL(file);
+ });
+}
 
 function cloudSetStatus(msg,type='info'){
  const a=$('cloudAlert');if(a){a.className=`alert alert-${type} py-2 small`;a.textContent=msg}
@@ -692,7 +732,7 @@ async function cloudConnect(){
 }
 function buildCloudState(){
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:7,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:routes,data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:11,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:routes,data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -700,7 +740,10 @@ function applyCloudState(obj){
    if(Array.isArray(obj.routes)&&obj.routes.length){routes=obj.routes;normalizeRoutes();localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));refreshRouteSelect($('selectRoute').value)}
    if(Array.isArray(obj.data)){
      const localPhotos=new Map(data.map(x=>[String(x.idTuyen),x.hinhAnh||'']));
-     data=obj.data.map(normalizeSurveyRow).filter(Boolean).map(x=>({...x,hinhAnh:x.hinhAnh||localPhotos.get(String(x.idTuyen))||''}));
+     data=obj.data.map(normalizeSurveyRow).filter(Boolean).map(x=>{
+       const id=String(x.idTuyen);
+       return {...x,hinhAnh:cloudPhotoCache.get(id)||x.hinhAnh||localPhotos.get(id)||''};
+     });
      try{localStorage.setItem(STORE,JSON.stringify(data))}catch(e){console.warn('LOCAL STORAGE',e)}
    }
    if(obj.settings){$('cfgMudPrice').value=obj.settings.mudPrice??$('cfgMudPrice').value;$('cfgPitPrice').value=obj.settings.pitPrice??$('cfgPitPrice').value}
@@ -709,17 +752,59 @@ function applyCloudState(obj){
 }
 async function cloudPushPhoto(routeId,imageData){
  if(!cloudDb||!cloudUser||!cloudWorkspace||!isAuthorizedDevice())return true;
- try{const ref=cloudDb.doc(`${cloudPath()}/photos/${routeId}`);if(imageData)await ref.set({routeId:Number(routeId),hinhAnh:imageData,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()},{merge:false});else await ref.delete().catch(()=>{});return true}
- catch(e){cloudSetStatus('Lưu ảnh Cloud lỗi: '+e.message,'danger');return false}
+ const id=String(routeId);
+ if(imageData) cloudPhotoCache.set(id,imageData); else cloudPhotoCache.delete(id);
+ try{
+   const ref=cloudDb.doc(`${cloudPath()}/photos/${routeId}`);
+   if(imageData){
+     await ref.set({routeId:Number(routeId),hinhAnh:imageData,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()},{merge:false});
+   }else{
+     await ref.delete().catch(()=>{});
+   }
+   return true;
+ }catch(e){
+   cloudSetStatus('Lưu ảnh Cloud lỗi: '+e.message,'danger');
+   return false;
+ }
 }
-function applyCloudPhotoDoc(doc){const p=doc.data()||{},id=String(p.routeId??doc.id),row=data.find(x=>String(x.idTuyen)===id);if(row){row.hinhAnh=p.hinhAnh||'';try{localStorage.setItem(STORE,JSON.stringify(data))}catch{}render()}}
+function applyCloudPhotoDoc(doc){
+ const p=doc.data()||{},id=String(p.routeId??doc.id),img=p.hinhAnh||'';
+ if(img) cloudPhotoCache.set(id,img); else cloudPhotoCache.delete(id);
+ const row=data.find(x=>String(x.idTuyen)===id);
+ if(row){
+   row.hinhAnh=img;
+   try{localStorage.setItem(STORE,JSON.stringify(data))}catch{}
+   render();
+ }
+}
 async function cloudLoadAndWatchPhotos(){
  if(!cloudDb||!cloudWorkspace)return;
- try{const col=cloudDb.collection(`${cloudPath()}/photos`),snap=await col.get();snap.forEach(applyCloudPhotoDoc);if(cloudPhotoUnsub)cloudPhotoUnsub();cloudPhotoUnsub=col.onSnapshot(s=>s.docChanges().forEach(ch=>{if(ch.type==='removed'){const row=data.find(x=>String(x.idTuyen)===String(ch.doc.id));if(row){row.hinhAnh='';render()}}else applyCloudPhotoDoc(ch.doc)}),e=>cloudSetStatus('Đồng bộ ảnh lỗi: '+e.message,'danger'))}
+ try{
+   const col=cloudDb.collection(`${cloudPath()}/photos`),snap=await col.get();
+   snap.forEach(applyCloudPhotoDoc);
+   if(cloudPhotoUnsub)cloudPhotoUnsub();
+   cloudPhotoUnsub=col.onSnapshot(s=>s.docChanges().forEach(ch=>{
+     if(ch.type==='removed'){
+       const id=String(ch.doc.id);cloudPhotoCache.delete(id);
+       const row=data.find(x=>String(x.idTuyen)===id);
+       if(row){row.hinhAnh='';try{localStorage.setItem(STORE,JSON.stringify(data))}catch{}render()}
+     }else applyCloudPhotoDoc(ch.doc)
+   }),e=>cloudSetStatus('Đồng bộ ảnh lỗi: '+e.message,'danger'))
+ }
  catch(e){cloudSetStatus('Tải ảnh Cloud lỗi: '+e.message,'danger')}
 }
 function scheduleCloudPush(){if(!cloudDb||!cloudUser||!cloudWorkspace||cloudApplying||!isAuthorizedDevice())return;clearTimeout(cloudPushTimer);cloudPushTimer=setTimeout(cloudPushState,500)}
-async function cloudPushState(){if(!cloudDb||!cloudUser||!cloudWorkspace||cloudApplying||!isAuthorizedDevice())return;try{await cloudDb.doc(`${cloudPath()}/state/main`).set(buildCloudState(),{merge:false});cloudSetStatus(`Đã đồng bộ • ${getUpdateActor()}`,'success')}catch(e){cloudSetStatus('Lưu Cloud lỗi: '+e.message,'danger')}}
+async function cloudPushState(force=false){
+ if(!cloudDb||!cloudUser||!cloudWorkspace||(!force&&cloudApplying)||!isAuthorizedDevice())return false;
+ try{
+   await cloudDb.doc(`${cloudPath()}/state/main`).set(buildCloudState(),{merge:false});
+   cloudSetStatus(`Đã đồng bộ dữ liệu + chiều cao • ${getUpdateActor()}`,'success');
+   return true;
+ }catch(e){
+   cloudSetStatus('Lưu Cloud lỗi: '+e.message,'danger');
+   return false;
+ }
+}
 async function cloudDisconnect(){
  try{if(cloudUnsub)cloudUnsub();cloudUnsub=null;if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=null;if(cloudPhotoUnsub)cloudPhotoUnsub();cloudPhotoUnsub=null;if(cloudAuth)await cloudAuth.signOut()}catch{}
  cloudDb=null;cloudAuth=null;cloudUser=null;cloudMeta=null;cloudWorkspace='';updateDeviceAccessUI();$('permissionPanel')?.classList.add('d-none');cloudSetStatus('Đã ngắt Cloud. Thiết bị không có quyền cập nhật cho đến khi kết nối lại.','info')
