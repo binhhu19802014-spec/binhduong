@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V21 Máy phụ không cần mật khẩu</title>
+<title>QL Khảo sát Mương Cửa Lò - V22 Cấp quyền nhiều máy & đổi tên thiết bị</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -150,10 +150,29 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
      </div>
    </div>
    <div class="row g-3">
-     <div class="col-lg-6"><div class="border rounded p-2"><b>Thiết bị đang chờ cấp quyền</b><div id="pendingDeviceList" class="mt-2 small"></div></div></div>
-     <div class="col-lg-6"><div class="border rounded p-2"><b>Thiết bị đã được cấp quyền</b><div id="authorizedDeviceList" class="mt-2 small"></div></div></div>
+     <div class="col-lg-6">
+       <div class="border rounded p-2">
+         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+           <b>Thiết bị đang chờ cấp quyền</b>
+           <div class="btn-group btn-group-sm">
+             <button class="btn btn-outline-secondary" type="button" onclick="selectAllPendingDevices(true)">Chọn tất cả</button>
+             <button class="btn btn-outline-secondary" type="button" onclick="selectAllPendingDevices(false)">Bỏ chọn</button>
+           </div>
+         </div>
+         <div class="small text-muted mt-1">Có thể chọn nhiều máy, đặt tên quản lý riêng cho từng máy rồi cấp quyền cùng một lần.</div>
+         <div id="pendingDeviceList" class="mt-2 small"></div>
+         <button id="grantSelectedDevicesBtn" class="btn btn-success w-100 mt-2" type="button" onclick="grantSelectedDevices()">Cấp quyền các máy đã chọn</button>
+       </div>
+     </div>
+     <div class="col-lg-6">
+       <div class="border rounded p-2">
+         <b>Thiết bị đã được cấp quyền</b>
+         <div class="small text-muted mt-1">Tên quản lý có thể đổi bất kỳ lúc nào để dễ theo dõi. Tên này cũng được dùng khi cấp tuyến.</div>
+         <div id="authorizedDeviceList" class="mt-2 small"></div>
+       </div>
+     </div>
    </div>
-   <div class="alert alert-info py-2 small mt-3 mb-0"><b>Sau khi cấp quyền thiết bị:</b> vào <b>Quản lý tuyến</b> → chọn máy phụ → <b>Cấp tuyến</b>. Máy phụ chỉ sửa tuyến được cấp 1 lần rồi tự khóa.</div>
+   <div class="alert alert-info py-2 small mt-3 mb-0"><b>Sau khi cấp quyền thiết bị:</b> vào <b>Quản lý tuyến</b> → chọn máy phụ → <b>Cấp tuyến</b>. Việc cấp nhiều máy hoặc đổi tên thiết bị không xóa/ghi đè dữ liệu khảo sát.</div>
  </div>
 
  <hr><details><summary class="fw-bold">Cách sử dụng phân quyền</summary><div class="small mt-2">
@@ -164,7 +183,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
      <li>Máy phụ tự đồng bộ quyền và chỉ nhìn thấy các tuyến được giao. Mỗi tuyến được sửa/cập nhật đúng <b>01 lần</b>, sau đó tự khóa.</li>
      <li>Máy chính có thể mở lại 01 lượt sửa hoặc cấp tuyến khác. Máy chính sửa không giới hạn.</li>
    </ol>
-   <div class="alert alert-success py-2 mb-0"><b>V21:</b> mật khẩu máy chính không được nhập hoặc lưu trên máy phụ. Quyền máy phụ gắn với tài khoản Firebase thiết bị riêng được tạo tự động trong nền.</div>
+   <div class="alert alert-success py-2 mb-0"><b>V22:</b> máy phụ không cần mật khẩu máy chính; máy chính có thể chọn nhiều máy để cấp quyền cùng lúc và đặt/đổi tên quản lý thiết bị theo ý muốn.</div>
  </div></details>
 </div></div></div></div>
 
@@ -1178,9 +1197,9 @@ async function requestDeviceAccess(){
      : 'Đã tự gửi yêu cầu cấp quyền. Vui lòng chờ máy chính duyệt.','warning');
  }catch(e){cloudSetStatus('Không gửi được yêu cầu cấp quyền: '+e.message,'danger')}
 }
-async function grantDeviceAccess(authUid){
- if(!ensureMaster('cấp quyền thiết bị'))return;
- if(!cloudDb||!cloudWorkspace)return alert('Hãy kết nối Cloud trên máy chính trước.');
+async function grantDeviceAccess(authUid,overrideName=''){
+ if(!ensureMaster('cấp quyền thiết bị'))return false;
+ if(!cloudDb||!cloudWorkspace){alert('Hãy kết nối Cloud trên máy chính trước.');return false;}
  const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
  const reqRef=cloudDb.doc(`${cloudPath()}/deviceRequests/${authUid}`);
  try{
@@ -1189,20 +1208,31 @@ async function grantDeviceAccess(authUid){
      if(!ms.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
      if(!rs.exists)throw new Error('Yêu cầu thiết bị không còn tồn tại.');
      const m=ms.data()||{},d=rs.data()||{};
+     const finalName=String(overrideName||d.managementName||d.name||('Thiết bị '+String(d.deviceId||'').slice(0,8))).trim();
      const auth=[...(m.authorizedDevices||[])].filter(x=>String(x.authUid)!==String(authUid)&&String(x.id)!==String(d.deviceId));
      auth.push({
        id:d.deviceId,authUid,
-       name:d.name||('Thiết bị '+String(d.deviceId||'').slice(0,8)),
+       name:finalName,
+       originalName:d.name||'',
        grantedAt:new Date().toISOString(),grantedByDeviceId:deviceId
      });
      const authorizedUids={...(m.authorizedUids||{})};
      authorizedUids[authUid]=true;
      tx.set(metaRef,{authorizedDevices:auth,authorizedUids,permissionUpdatedAt:new Date().toISOString()},{merge:true});
-     tx.set(reqRef,{status:'approved',approvedAt:new Date().toISOString(),approvedByDeviceId:deviceId},{merge:true});
+     tx.set(reqRef,{
+       status:'approved',
+       managementName:finalName,
+       approvedAt:new Date().toISOString(),
+       approvedByDeviceId:deviceId
+     },{merge:true});
    });
    await refreshCloudMeta();
-   cloudSetStatus('Đã cấp quyền thiết bị. Máy phụ sẽ tự kết nối và nhận quyền, không cần mật khẩu máy chính.','success');
- }catch(e){cloudSetStatus('Không cấp được quyền: '+e.message,'danger')}
+   cloudSetStatus('Đã cấp quyền thiết bị. Tên quản lý đã được lưu; dữ liệu khảo sát giữ nguyên.','success');
+   return true;
+ }catch(e){
+   cloudSetStatus('Không cấp được quyền: '+e.message,'danger');
+   return false;
+ }
 }
 async function grantDeviceDirect(){
  if(!ensureMaster('cấp quyền trực tiếp'))return;
@@ -1214,10 +1244,128 @@ async function grantDeviceDirect(){
  if(!req){
    return alert('Chưa thấy yêu cầu từ Mã thiết bị này. Trên máy phụ chỉ cần mở phần mềm/Cloud để hệ thống tự gửi yêu cầu, sau đó thử lại.');
  }
- await grantDeviceAccess(req.authUid);
+ const desiredName=String($('directDeviceName')?.value||'').trim();
+ await grantDeviceAccess(req.authUid,desiredName);
  if($('directDeviceId'))$('directDeviceId').value='';
  if($('directDeviceName'))$('directDeviceName').value='';
 }
+
+function pendingCheckboxId(authUid){return 'pendingChk_'+String(authUid).replace(/[^a-zA-Z0-9_-]/g,'_')}
+function pendingNameInputId(authUid){return 'pendingName_'+String(authUid).replace(/[^a-zA-Z0-9_-]/g,'_')}
+function authorizedNameInputId(authUid){return 'authorizedName_'+String(authUid).replace(/[^a-zA-Z0-9_-]/g,'_')}
+
+function selectAllPendingDevices(checked){
+ document.querySelectorAll('#pendingDeviceList .pending-device-check').forEach(el=>el.checked=!!checked);
+ updateGrantSelectedCount();
+}
+function updateGrantSelectedCount(){
+ const n=[...document.querySelectorAll('#pendingDeviceList .pending-device-check:checked')].length;
+ const b=$('grantSelectedDevicesBtn');
+ if(b)b.textContent=n?`Cấp quyền ${n} máy đã chọn`:'Cấp quyền các máy đã chọn';
+}
+async function grantSelectedDevices(){
+ if(!ensureMaster('cấp quyền nhiều thiết bị'))return;
+ const selected=[...document.querySelectorAll('#pendingDeviceList .pending-device-check:checked')];
+ if(!selected.length)return alert('Vui lòng chọn ít nhất 1 máy đang chờ cấp quyền.');
+
+ const items=selected.map(chk=>{
+   const uid=chk.dataset.authUid;
+   const req=cloudPendingRequests.find(x=>String(x.authUid)===String(uid))||{};
+   const input=$(pendingNameInputId(uid));
+   return {
+     authUid:uid,
+     name:String(input?.value||req.managementName||req.name||('Thiết bị '+String(req.deviceId||'').slice(0,8))).trim()
+   };
+ });
+ if(!confirm(`Cấp quyền cùng lúc cho ${items.length} máy đã chọn?`))return;
+
+ const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
+ try{
+   await cloudDb.runTransaction(async tx=>{
+     const ms=await tx.get(metaRef);
+     if(!ms.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
+     const m=ms.data()||{};
+     let auth=[...(m.authorizedDevices||[])];
+     const authorizedUids={...(m.authorizedUids||{})};
+
+     for(const item of items){
+       const reqRef=cloudDb.doc(`${cloudPath()}/deviceRequests/${item.authUid}`);
+       const rs=await tx.get(reqRef);
+       if(!rs.exists)continue;
+       const d=rs.data()||{};
+       const finalName=item.name||d.name||('Thiết bị '+String(d.deviceId||'').slice(0,8));
+       auth=auth.filter(x=>String(x.authUid)!==String(item.authUid)&&String(x.id)!==String(d.deviceId));
+       auth.push({
+         id:d.deviceId,authUid:item.authUid,
+         name:finalName,
+         originalName:d.name||'',
+         grantedAt:new Date().toISOString(),grantedByDeviceId:deviceId
+       });
+       authorizedUids[item.authUid]=true;
+       tx.set(reqRef,{
+         status:'approved',
+         managementName:finalName,
+         approvedAt:new Date().toISOString(),
+         approvedByDeviceId:deviceId
+       },{merge:true});
+     }
+     tx.set(metaRef,{
+       authorizedDevices:auth,
+       authorizedUids,
+       permissionUpdatedAt:new Date().toISOString()
+     },{merge:true});
+   });
+   await refreshCloudMeta();
+   cloudSetStatus(`Đã cấp quyền cùng lúc cho ${items.length} máy. Dữ liệu khảo sát không bị thay đổi.`,'success');
+ }catch(e){
+   cloudSetStatus('Cấp quyền nhiều máy lỗi: '+e.message,'danger');
+ }
+}
+
+async function renameAuthorizedDevice(authUid){
+ if(!ensureMaster('đổi tên thiết bị'))return;
+ if(!cloudDb||!cloudWorkspace)return alert('Hãy kết nối Cloud trên máy chính trước.');
+ const input=$(authorizedNameInputId(authUid));
+ const newName=String(input?.value||'').trim();
+ if(!newName)return alert('Tên thiết bị không được để trống.');
+
+ const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
+ const reqRef=cloudDb.doc(`${cloudPath()}/deviceRequests/${authUid}`);
+ try{
+   await cloudDb.runTransaction(async tx=>{
+     const ms=await tx.get(metaRef);
+     if(!ms.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
+     const m=ms.data()||{};
+     const auth=[...(m.authorizedDevices||[])];
+     const idx=auth.findIndex(x=>String(x.authUid)===String(authUid));
+     if(idx<0)throw new Error('Thiết bị không còn trong danh sách được cấp quyền.');
+     const oldName=auth[idx].name||'';
+     auth[idx]={...auth[idx],name:newName,renamedAt:new Date().toISOString(),renamedByDeviceId:deviceId};
+
+     const assignments={...(m.routeAssignments||{})};
+     Object.keys(assignments).forEach(rid=>{
+       const a=assignments[rid];
+       if(a&&String(a.authUid||'')===String(authUid)){
+         assignments[rid]={...a,deviceName:newName};
+       }else if(a&&String(a.deviceId||'')===String(auth[idx].id||'')){
+         assignments[rid]={...a,deviceName:newName,authUid:authUid};
+       }
+     });
+
+     tx.set(metaRef,{
+       authorizedDevices:auth,
+       routeAssignments:assignments,
+       permissionUpdatedAt:new Date().toISOString()
+     },{merge:true});
+     tx.set(reqRef,{managementName:newName,nameUpdatedAt:new Date().toISOString()},{merge:true});
+   });
+   await refreshCloudMeta();
+   cloudSetStatus(`Đã đổi tên thiết bị thành "${newName}". Danh sách cấp tuyến đã cập nhật tên mới.`,'success');
+ }catch(e){
+   cloudSetStatus('Đổi tên thiết bị lỗi: '+e.message,'danger');
+ }
+}
+
 async function revokeDeviceAccess(authUid){
  if(!ensureMaster('thu hồi quyền thiết bị'))return;
  if(!confirm('Thu hồi quyền thiết bị này? Dữ liệu khảo sát vẫn được giữ nguyên.'))return;
@@ -1240,12 +1388,64 @@ function renderPermissionPanel(){
  const p=$('permissionPanel');if(!p)return;
  p.classList.toggle('d-none',!isMasterDevice());
  if(!isMasterDevice())return;
+
  const pending=Array.isArray(cloudPendingRequests)?cloudPendingRequests.filter(x=>x.status==='pending'):[],
        auth=Array.isArray(cloudMeta?.authorizedDevices)?cloudMeta.authorizedDevices:[];
  const pd=$('pendingDeviceList'),ad=$('authorizedDeviceList');
- if(pd)pd.innerHTML=pending.length?pending.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.deviceId||'')}</code><div class="small text-muted">${escapeHtml(d.authUid||'')}</div><div class="mt-1"><button class="btn btn-sm btn-success" onclick="grantDeviceAccess('${escapeHtml(d.authUid)}')">Cấp quyền</button></div></div>`).join(''):'<span class="text-muted">Không có yêu cầu mới.</span>';
- if(ad)ad.innerHTML=auth.length?auth.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.id||'')}</code><div class="small text-muted">${escapeHtml(d.authUid||'')}</div><div class="mt-1"><button class="btn btn-sm btn-outline-danger" onclick="revokeDeviceAccess('${escapeHtml(d.authUid||'')}')">Thu hồi</button></div></div>`).join(''):'<span class="text-muted">Chưa cấp quyền thiết bị phụ nào.</span>';
+
+ if(pd){
+   pd.innerHTML=pending.length?pending.map(d=>{
+     const uid=String(d.authUid||'');
+     const suggested=d.managementName||d.name||('Thiết bị '+String(d.deviceId||'').slice(0,8));
+     return `<div class="border rounded p-2 mb-2 pending-device-item">
+       <div class="form-check mb-2">
+         <input class="form-check-input pending-device-check" type="checkbox"
+           id="${pendingCheckboxId(uid)}" data-auth-uid="${escapeHtml(uid)}"
+           onchange="updateGrantSelectedCount()">
+         <label class="form-check-label fw-bold" for="${pendingCheckboxId(uid)}">${escapeHtml(d.name||'Thiết bị')}</label>
+       </div>
+       <div class="small text-muted mb-1">Mã thiết bị</div>
+       <code class="d-block mb-2 text-break">${escapeHtml(d.deviceId||'')}</code>
+       <label class="small fw-bold">Tên quản lý</label>
+       <input id="${pendingNameInputId(uid)}" class="form-control form-control-sm mt-1"
+         value="${escapeHtml(suggested)}" placeholder="VD: Điện thoại Anh A, Máy khảo sát 01">
+       <div class="mt-2">
+         <button class="btn btn-sm btn-success" type="button"
+           onclick="grantDeviceAccess('${escapeHtml(uid)}',$('${pendingNameInputId(uid)}').value)">Cấp riêng máy này</button>
+       </div>
+     </div>`;
+   }).join(''):'<span class="text-muted">Không có yêu cầu mới.</span>';
+ }
+
+ if(ad){
+   ad.innerHTML=auth.length?auth.map(d=>{
+     const uid=String(d.authUid||'');
+     return `<div class="border rounded p-2 mb-2 authorized-device-item">
+       <div class="d-flex justify-content-between gap-2 align-items-start">
+         <div class="flex-grow-1">
+           <div class="small text-muted">Mã thiết bị</div>
+           <code class="d-block text-break">${escapeHtml(d.id||'')}</code>
+         </div>
+         <span class="badge text-bg-success">Đã cấp quyền</span>
+       </div>
+       <label class="small fw-bold mt-2">Tên quản lý thiết bị</label>
+       <div class="input-group input-group-sm mt-1">
+         <input id="${authorizedNameInputId(uid)}" class="form-control"
+           value="${escapeHtml(d.name||'Thiết bị')}" placeholder="Tên dễ nhận biết">
+         <button class="btn btn-outline-primary" type="button"
+           onclick="renameAuthorizedDevice('${escapeHtml(uid)}')">Lưu tên</button>
+       </div>
+       ${d.originalName&&d.originalName!==d.name?`<div class="small text-muted mt-1">Tên gốc: ${escapeHtml(d.originalName)}</div>`:''}
+       <div class="mt-2">
+         <button class="btn btn-sm btn-outline-danger" type="button"
+           onclick="revokeDeviceAccess('${escapeHtml(uid)}')">Thu hồi quyền</button>
+       </div>
+     </div>`;
+   }).join(''):'<span class="text-muted">Chưa cấp quyền thiết bị phụ nào.</span>';
+ }
+ updateGrantSelectedCount();
 }
+
 async function loadCloudStateAndWatch(){
  const stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
  cloudStateLoaded=false;
@@ -1401,7 +1601,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:21,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:22,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -1511,7 +1711,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
        }
        tx.set(ref,{
          ...remote,
-         version:21,
+         version:22,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor(),
          routes:remoteRoutes,
