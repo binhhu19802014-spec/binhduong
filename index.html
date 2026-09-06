@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V20 Đồng bộ quyền máy phụ</title>
+<title>QL Khảo sát Mương Cửa Lò - V21 Máy phụ không cần mật khẩu</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -119,14 +119,14 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <div class="modal fade" id="cloudModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
-<div class="modal-header"><div><h5 class="modal-title">Cloud dùng chung 1 tài khoản & phân quyền thiết bị</h5><div class="small text-muted">Toàn bộ thiết bị dùng tài khoản Firebase duy nhất <b>binhhu19802014@gmail.com</b>. Máy chính cấp quyền cho từng thiết bị. <b>Cấp quyền không xóa hoặc thay thế số liệu khảo sát hiện có.</b></div></div><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<div class="modal-header"><div><h5 class="modal-title">Cloud & phân quyền thiết bị</h5><div class="small text-muted"><b>Máy chính</b> dùng tài khoản quản trị. <b>Máy phụ không cần biết hoặc nhập mật khẩu máy chính</b>: phần mềm tự tạo tài khoản thiết bị nền, gửi yêu cầu bằng Mã thiết bị và tự nhận tuyến sau khi được duyệt. Dữ liệu khảo sát hiện có không bị xóa khi cấp quyền.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div>
 <div class="modal-body">
  <div id="cloudAlert" class="alert alert-info py-2 small">Chưa kết nối Cloud. Thiết bị chưa được xác định quyền.</div>
  <div class="row g-2">
    <div class="col-md-3"><label class="form-label">Workspace</label><input id="cloudWorkspace" class="form-control" readonly></div>
-   <div class="col-md-4"><label class="form-label">Tài khoản dùng chung</label><input id="cloudEmail" type="email" class="form-control" value="binhhu19802014@gmail.com" readonly></div>
-   <div class="col-md-3"><label class="form-label">Mật khẩu Firebase</label><input id="cloudPassword" type="password" class="form-control" minlength="6" placeholder="Nhập mật khẩu tài khoản chính"></div>
-   <div class="col-md-2 d-flex align-items-end gap-2"><button class="btn btn-primary flex-fill" type="button" onclick="cloudConnect()">Kết nối</button><button class="btn btn-outline-danger" type="button" onclick="cloudDisconnect()">Ngắt</button></div>
+   <div class="col-md-4" id="masterEmailWrap"><label class="form-label">Tài khoản máy chính</label><input id="cloudEmail" type="email" class="form-control" value="binhhu19802014@gmail.com" readonly></div>
+   <div class="col-md-3" id="masterPasswordWrap"><label class="form-label">Mật khẩu Firebase máy chính</label><input id="cloudPassword" type="password" class="form-control" minlength="6" placeholder="Chỉ nhập trên máy chính"></div>
+   <div class="col-md-2 d-flex align-items-end gap-2"><button id="cloudConnectBtn" class="btn btn-primary flex-fill" type="button" onclick="cloudConnect()">Kết nối</button><button class="btn btn-outline-danger" type="button" onclick="cloudDisconnect()">Ngắt</button></div>
  </div>
  <div class="row g-2 mt-2">
    <div class="col-md-5"><label class="form-label">Tên thiết bị</label><input id="deviceNameInput" class="form-control" placeholder="VD: Máy khảo sát số 01" onchange="saveDeviceName()"></div>
@@ -142,7 +142,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
    <div class="small text-muted mb-2">Máy chính duyệt thiết bị. Thiết bị được duyệt có thể khảo sát và chỉ được sửa mỗi tuyến 1 lần; sau đó tuyến tự khóa.</div>
    <div class="border rounded p-3 mb-3 bg-light">
      <b>Cấp quyền trực tiếp cho máy khác</b>
-     <div class="small text-muted mb-2">Trên máy phụ mở Cloud và lấy <b>Mã thiết bị</b>, sau đó nhập mã đó tại đây. Cấp quyền không làm thay đổi hoặc xóa dữ liệu khảo sát hiện có.</div>
+     <div class="small text-muted mb-2">Máy phụ chỉ cần mở phần mềm: hệ thống tự kết nối nền và gửi yêu cầu. Có thể dán <b>Mã thiết bị</b> tại đây để tìm đúng yêu cầu và duyệt nhanh. Cấp quyền không làm thay đổi hoặc xóa dữ liệu khảo sát hiện có.</div>
      <div class="row g-2">
        <div class="col-md-5"><input id="directDeviceId" class="form-control font-monospace" placeholder="Dán Mã thiết bị máy phụ"></div>
        <div class="col-md-4"><input id="directDeviceName" class="form-control" placeholder="Tên máy phụ, VD: Máy khảo sát 01"></div>
@@ -158,13 +158,13 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 
  <hr><details><summary class="fw-bold">Cách sử dụng phân quyền</summary><div class="small mt-2">
    <ol>
-     <li>Trên <b>máy chính</b>, kết nối Firebase bằng tài khoản <b>binhhu19802014@gmail.com</b>. Nếu Workspace chưa có máy chính, xác nhận đặt máy này làm máy chính.</li>
-     <li>Trên máy khác, cũng kết nối bằng cùng tài khoản Firebase; phần mềm tự tạo Mã thiết bị và gửi yêu cầu cấp quyền.</li>
-     <li>Máy chính mở Cloud → duyệt thiết bị. Sau khi duyệt, máy đó được dùng phần mềm.</li>
-     <li>Trong Quản lý tuyến, thiết bị phụ chỉ có nút <b>Sửa</b>, không có <b>Xóa</b>. Sau khi Lưu/cập nhật 1 lần, tuyến tự khóa với tất cả thiết bị phụ.</li>
-     <li>Máy chính có thể bấm <b>Mở cho máy khác sửa</b> để cho phép đúng 1 lượt sửa tiếp theo. Máy chính luôn được sửa/xóa không giới hạn.</li>
+     <li><b>Máy chính</b>: kết nối bằng tài khoản quản trị <b>binhhu19802014@gmail.com</b>.</li>
+     <li><b>Máy phụ/điện thoại</b>: không nhập tài khoản hoặc mật khẩu máy chính. Phần mềm tự tạo tài khoản thiết bị nền và tự gửi yêu cầu bằng <b>Mã thiết bị</b>.</li>
+     <li>Máy chính mở Cloud → duyệt thiết bị đang chờ. Sau đó vào <b>Quản lý tuyến</b> → chọn máy phụ → <b>Cấp tuyến</b>.</li>
+     <li>Máy phụ tự đồng bộ quyền và chỉ nhìn thấy các tuyến được giao. Mỗi tuyến được sửa/cập nhật đúng <b>01 lần</b>, sau đó tự khóa.</li>
+     <li>Máy chính có thể mở lại 01 lượt sửa hoặc cấp tuyến khác. Máy chính sửa không giới hạn.</li>
    </ol>
-   <div class="alert alert-warning py-2 mb-0"><b>Lưu ý:</b> do yêu cầu dùng chung một tài khoản Firebase cho mọi thiết bị, khóa theo thiết bị được phần mềm thực thi ở tầng ứng dụng. Nếu cần bảo mật thiết bị ở cấp máy chủ tuyệt đối, phải dùng tài khoản Firebase riêng cho từng người hoặc backend cấp token riêng.</div>
+   <div class="alert alert-success py-2 mb-0"><b>V21:</b> mật khẩu máy chính không được nhập hoặc lưu trên máy phụ. Quyền máy phụ gắn với tài khoản Firebase thiết bị riêng được tạo tự động trong nền.</div>
  </div></details>
 </div></div></div></div>
 
@@ -256,8 +256,64 @@ const MASTER_DEVICE_ID='e5bd6766-c82f-4440-a0d0-fd2887dfce08';
 const DEVICE_ID_STORE='CUALO_DEVICE_ID_V1', DEVICE_NAME_STORE='CUALO_DEVICE_NAME_V1';
 const MASTER_DEVICE_MARKER_STORE='CUALO_MASTER_DEVICE_MARKER_V18';
 const DEVICE_PERMISSION_CACHE_STORE='CUALO_DEVICE_PERMISSION_CACHE_V20';
+const DEVICE_AUTH_STORE='CUALO_DEVICE_AUTH_V21';
 let deviceId='',deviceName='',currentUser=null;
 let permissionRefreshTimer=null;
+let cloudRequestUnsub=null,cloudOwnRequestUnsub=null;
+let cloudPendingRequests=[];
+let cloudAuthorizedSessionStarted=false;
+
+function makeDeviceAuthRecord(){
+ const rand=(crypto?.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now().toString(36)).replace(/[^a-zA-Z0-9]/g,'').slice(0,24);
+ const dev=String(deviceId||'device').replace(/[^a-zA-Z0-9]/g,'').slice(0,32);
+ return {
+   email:`device.${dev}.${rand.slice(0,8)}@khao-sat-muong-cua-lo.app`,
+   password:`Dv!${rand}#${Math.random().toString(36).slice(2,10)}`,
+   createdAt:new Date().toISOString()
+ };
+}
+function getDeviceAuthRecord(){
+ try{
+   let r=JSON.parse(localStorage.getItem(DEVICE_AUTH_STORE)||'null');
+   if(!r?.email||!r?.password){r=makeDeviceAuthRecord();localStorage.setItem(DEVICE_AUTH_STORE,JSON.stringify(r))}
+   return r;
+ }catch{
+   const r=makeDeviceAuthRecord();localStorage.setItem(DEVICE_AUTH_STORE,JSON.stringify(r));return r;
+ }
+}
+function rotateDeviceAuthRecord(){
+ const r=makeDeviceAuthRecord();localStorage.setItem(DEVICE_AUTH_STORE,JSON.stringify(r));return r;
+}
+async function ensureDeviceFirebaseAccount(){
+ ensureFirebase();
+ if(isMasterDevice())throw new Error('Máy chính không dùng tài khoản thiết bị nền.');
+ let rec=getDeviceAuthRecord();
+ if(cloudAuth.currentUser && String(cloudAuth.currentUser.email||'').toLowerCase()===String(rec.email).toLowerCase()){
+   return cloudAuth.currentUser;
+ }
+ try{
+   const c=await cloudAuth.signInWithEmailAndPassword(rec.email,rec.password);
+   return c.user;
+ }catch(e){
+   const code=String(e?.code||'');
+   if(code.includes('user-not-found')||code.includes('invalid-credential')||code.includes('wrong-password')){
+     if(code.includes('invalid-credential')||code.includes('wrong-password')) rec=rotateDeviceAuthRecord();
+     try{
+       const c=await cloudAuth.createUserWithEmailAndPassword(rec.email,rec.password);
+       return c.user;
+     }catch(e2){
+       if(String(e2?.code||'').includes('email-already-in-use')){
+         rec=rotateDeviceAuthRecord();
+         const c=await cloudAuth.createUserWithEmailAndPassword(rec.email,rec.password);
+         return c.user;
+       }
+       throw e2;
+     }
+   }
+   throw e;
+ }
+}
+
 
 function permissionCacheKey(){return `${String(cloudWorkspace||'CUALO-2026')}::${String(deviceId||'')}`}
 function readPermissionCache(){
@@ -463,7 +519,7 @@ function updateDeviceAccessUI(){
  if(label){
    label.textContent=isMasterDevice()
      ? `MÁY CHÍNH • ${deviceName}`
-     : cloudUser?`${role} • ${deviceName}`:`Chưa kết nối Cloud • ${deviceName||'Thiết bị'}`;
+     : cloudUser?`${role} • ${deviceName}`:`Máy phụ tự kết nối • ${deviceName||'Thiết bị'}`;
  }
  const st=$('deviceAccessStatus');if(st){
    const cls=isMasterDevice()?'success':isAuthorizedDevice()?'primary':cloudUser?'warning':'secondary';
@@ -685,7 +741,7 @@ async function assignRouteToDevice(routeId,deviceIdToAssign){
  if(!dev)return alert('Thiết bị chưa được cấp quyền sử dụng phần mềm.');
  const assignments={...(cloudMeta.routeAssignments||{})};
  assignments[String(routeId)]={
-   deviceId:dev.id,deviceName:dev.name||('Thiết bị '+String(dev.id).slice(0,8)),
+   deviceId:dev.id,authUid:dev.authUid||'',deviceName:dev.name||('Thiết bị '+String(dev.id).slice(0,8)),
    active:true,assignedAt:new Date().toISOString(),assignedByDeviceId:deviceId
  };
  const locks={...(cloudMeta.routeLocks||{})};
@@ -1070,26 +1126,26 @@ async function syncMyPermissionNow(showMessage=true){
    return true;
  }
  if(!cloudDb||!cloudWorkspace||!cloudUser){
-   if(showMessage)cloudSetStatus('Hãy Kết nối Cloud trước để đồng bộ quyền.','warning');
+   try{await cloudConnect()}catch{}
    return false;
  }
  try{
-   const s=await cloudDb.doc(`${cloudPath()}/config/meta`).get();
-   if(!s.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
-   cloudMeta=s.data()||{};
-   syncPermissionCacheFromMeta();
-   updateDeviceAccessUI();
-   renderPermissionPanel();
-   refreshRouteSelect($('selectRoute')?.value||'');
-   renderRouteTable();
-   render();
+   const rs=await cloudDb.doc(`${cloudPath()}/deviceRequests/${cloudUser.uid}`).get();
+   const r=rs.exists?(rs.data()||{}):{};
+   if(r.status!=='approved'){
+     await requestDeviceAccess();
+     if(showMessage)cloudSetStatus('Máy này đang chờ máy chính cấp quyền.','warning');
+     return false;
+   }
+   await startAuthorizedCloudSession();
+   const ms=await cloudDb.doc(`${cloudPath()}/config/meta`).get();
+   if(ms.exists){cloudMeta=ms.data()||{};syncPermissionCacheFromMeta()}
+   updateDeviceAccessUI();refreshRouteSelect($('selectRoute')?.value||'');renderRouteTable();render();
    if(showMessage){
      const c=readPermissionCache();
-     cloudSetStatus(isAuthorizedDevice()
-       ? `Đã đồng bộ quyền • ${deviceName}${c?.assignedIds?.length?` • ${c.assignedIds.length} tuyến được cấp`:''}`
-       : 'Máy này chưa có trong danh sách thiết bị được cấp quyền.','success');
+     cloudSetStatus(`Đã đồng bộ quyền${c?.assignedIds?.length?` • ${c.assignedIds.length} tuyến được cấp`:' • Chưa được cấp tuyến'}`,'success');
    }
-   return isAuthorizedDevice();
+   return true;
  }catch(e){
    if(showMessage)cloudSetStatus('Đồng bộ quyền lỗi: '+e.message,'danger');
    return false;
@@ -1103,161 +1159,249 @@ function startPermissionAutoRefresh(){
 
 async function requestDeviceAccess(){
  try{
-   if(!cloudDb||!cloudUser||!cloudWorkspace)throw new Error('Hãy kết nối Cloud trước.');
-   if(isAuthorizedDevice())return;
-   const pend=[...(cloudMeta.pendingDevices||[])].filter(d=>String(d.id)!==String(deviceId));
-   pend.push({id:deviceId,name:deviceName,requestedAt:new Date().toISOString()});
-   cloudMeta.pendingDevices=pend;
-   await cloudDb.doc(`${cloudPath()}/config/meta`).set({pendingDevices:pend},{merge:true});
-   cloudSetStatus('Đã gửi yêu cầu cấp quyền. Vui lòng duyệt trên máy chính.','warning');
+   if(!cloudDb||!cloudUser||!cloudWorkspace)throw new Error('Thiết bị chưa kết nối nền.');
+   if(isMasterDevice()||isAuthorizedDevice())return;
+   const ref=cloudDb.doc(`${cloudPath()}/deviceRequests/${cloudUser.uid}`);
+   const snap=await ref.get().catch(()=>null);
+   const old=snap?.exists?snap.data():{};
+   const status=old?.status==='approved'?'approved':'pending';
+   await ref.set({
+     authUid:cloudUser.uid,
+     deviceId,
+     name:deviceName,
+     status,
+     requestedAt:old?.requestedAt||new Date().toISOString(),
+     lastSeenAt:new Date().toISOString()
+   },{merge:true});
+   cloudSetStatus(status==='approved'
+     ? 'Thiết bị đã được duyệt. Đang tải quyền tuyến...'
+     : 'Đã tự gửi yêu cầu cấp quyền. Vui lòng chờ máy chính duyệt.','warning');
  }catch(e){cloudSetStatus('Không gửi được yêu cầu cấp quyền: '+e.message,'danger')}
 }
-async function grantDeviceAccess(id){
+async function grantDeviceAccess(authUid){
  if(!ensureMaster('cấp quyền thiết bị'))return;
- if(!cloudDb||!cloudWorkspace)return alert('Hãy kết nối Cloud trước.');
- const ref=cloudDb.doc(`${cloudPath()}/config/meta`);
+ if(!cloudDb||!cloudWorkspace)return alert('Hãy kết nối Cloud trên máy chính trước.');
+ const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
+ const reqRef=cloudDb.doc(`${cloudPath()}/deviceRequests/${authUid}`);
  try{
    await cloudDb.runTransaction(async tx=>{
-     const snap=await tx.get(ref);if(!snap.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
-     const m=snap.data()||{},pending=[...(m.pendingDevices||[])];
-     const d=pending.find(x=>String(x.id)===String(id));if(!d)throw new Error('Yêu cầu cấp quyền không còn tồn tại.');
-     const auth=[...(m.authorizedDevices||[])].filter(x=>String(x.id)!==String(id));
-     auth.push({id:d.id,name:d.name||('Thiết bị '+String(d.id).slice(0,8)),grantedAt:new Date().toISOString(),grantedByDeviceId:deviceId});
-     tx.update(ref,{authorizedDevices:auth,pendingDevices:pending.filter(x=>String(x.id)!==String(id)),permissionUpdatedAt:new Date().toISOString()});
+     const [ms,rs]=await Promise.all([tx.get(metaRef),tx.get(reqRef)]);
+     if(!ms.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
+     if(!rs.exists)throw new Error('Yêu cầu thiết bị không còn tồn tại.');
+     const m=ms.data()||{},d=rs.data()||{};
+     const auth=[...(m.authorizedDevices||[])].filter(x=>String(x.authUid)!==String(authUid)&&String(x.id)!==String(d.deviceId));
+     auth.push({
+       id:d.deviceId,authUid,
+       name:d.name||('Thiết bị '+String(d.deviceId||'').slice(0,8)),
+       grantedAt:new Date().toISOString(),grantedByDeviceId:deviceId
+     });
+     const authorizedUids={...(m.authorizedUids||{})};
+     authorizedUids[authUid]=true;
+     tx.set(metaRef,{authorizedDevices:auth,authorizedUids,permissionUpdatedAt:new Date().toISOString()},{merge:true});
+     tx.set(reqRef,{status:'approved',approvedAt:new Date().toISOString(),approvedByDeviceId:deviceId},{merge:true});
    });
    await refreshCloudMeta();
-   cloudSetStatus('Đã cấp quyền thiết bị. Dữ liệu khảo sát hiện có được giữ nguyên.','success');
+   cloudSetStatus('Đã cấp quyền thiết bị. Máy phụ sẽ tự kết nối và nhận quyền, không cần mật khẩu máy chính.','success');
  }catch(e){cloudSetStatus('Không cấp được quyền: '+e.message,'danger')}
 }
 async function grantDeviceDirect(){
  if(!ensureMaster('cấp quyền trực tiếp'))return;
- if(!cloudDb||!cloudWorkspace)return alert('Hãy kết nối Cloud trước.');
+ if(!cloudDb||!cloudWorkspace)return alert('Hãy kết nối Cloud trên máy chính trước.');
  const id=String($('directDeviceId')?.value||'').trim();
- const name=String($('directDeviceName')?.value||'').trim()||('Thiết bị '+id.slice(0,8));
- if(!id)return alert('Vui lòng nhập Mã thiết bị của máy phụ.');
+ if(!id)return alert('Vui lòng nhập Mã thiết bị máy phụ.');
  if(id===MASTER_DEVICE_ID)return alert('Đây là Mã thiết bị của máy chính.');
- const ref=cloudDb.doc(`${cloudPath()}/config/meta`);
+ const req=cloudPendingRequests.find(x=>String(x.deviceId)===id);
+ if(!req){
+   return alert('Chưa thấy yêu cầu từ Mã thiết bị này. Trên máy phụ chỉ cần mở phần mềm/Cloud để hệ thống tự gửi yêu cầu, sau đó thử lại.');
+ }
+ await grantDeviceAccess(req.authUid);
+ if($('directDeviceId'))$('directDeviceId').value='';
+ if($('directDeviceName'))$('directDeviceName').value='';
+}
+async function revokeDeviceAccess(authUid){
+ if(!ensureMaster('thu hồi quyền thiết bị'))return;
+ if(!confirm('Thu hồi quyền thiết bị này? Dữ liệu khảo sát vẫn được giữ nguyên.'))return;
+ const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
+ const reqRef=cloudDb.doc(`${cloudPath()}/deviceRequests/${authUid}`);
  try{
    await cloudDb.runTransaction(async tx=>{
-     const snap=await tx.get(ref);if(!snap.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
-     const m=snap.data()||{};
-     const auth=[...(m.authorizedDevices||[])].filter(x=>String(x.id)!==id);
-     auth.push({id,name,grantedAt:new Date().toISOString(),grantedByDeviceId:deviceId,grantedDirectly:true});
-     const pending=[...(m.pendingDevices||[])].filter(x=>String(x.id)!==id);
-     tx.update(ref,{authorizedDevices:auth,pendingDevices:pending,permissionUpdatedAt:new Date().toISOString()});
+     const ms=await tx.get(metaRef);if(!ms.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
+     const m=ms.data()||{};
+     const auth=[...(m.authorizedDevices||[])].filter(x=>String(x.authUid)!==String(authUid));
+     const authorizedUids={...(m.authorizedUids||{})};delete authorizedUids[authUid];
+     tx.set(metaRef,{authorizedDevices:auth,authorizedUids,permissionUpdatedAt:new Date().toISOString()},{merge:true});
+     tx.set(reqRef,{status:'revoked',revokedAt:new Date().toISOString()},{merge:true});
    });
-   if($('directDeviceId'))$('directDeviceId').value='';
-   if($('directDeviceName'))$('directDeviceName').value='';
    await refreshCloudMeta();
-   cloudSetStatus(`Đã cấp quyền cho ${name}. Không thay đổi dữ liệu khảo sát Cloud.`,'success');
- }catch(e){cloudSetStatus('Không cấp được quyền trực tiếp: '+e.message,'danger')}
-}
-
-async function revokeDeviceAccess(id){
- if(!ensureMaster('thu hồi quyền thiết bị'))return;
- if(!confirm('Thu hồi quyền thiết bị này?'))return;
- const auth=[...(cloudMeta.authorizedDevices||[])].filter(x=>String(x.id)!==String(id));
- cloudMeta.authorizedDevices=auth;
- await cloudDb.doc(`${cloudPath()}/config/meta`).set({authorizedDevices:auth},{merge:true});
- renderPermissionPanel();cloudSetStatus('Đã thu hồi quyền thiết bị. Dữ liệu khảo sát Cloud không bị xóa.','info');
+   cloudSetStatus('Đã thu hồi quyền thiết bị. Dữ liệu khảo sát Cloud không bị xóa.','info');
+ }catch(e){cloudSetStatus('Thu hồi quyền lỗi: '+e.message,'danger')}
 }
 function renderPermissionPanel(){
  const p=$('permissionPanel');if(!p)return;
  p.classList.toggle('d-none',!isMasterDevice());
  if(!isMasterDevice())return;
- const pending=Array.isArray(cloudMeta?.pendingDevices)?cloudMeta.pendingDevices:[],
+ const pending=Array.isArray(cloudPendingRequests)?cloudPendingRequests.filter(x=>x.status==='pending'):[],
        auth=Array.isArray(cloudMeta?.authorizedDevices)?cloudMeta.authorizedDevices:[];
  const pd=$('pendingDeviceList'),ad=$('authorizedDeviceList');
- if(!cloudMeta){
-   if(pd)pd.innerHTML='<span class="text-muted">Đang tải danh sách yêu cầu...</span>';
-   if(ad)ad.innerHTML='<span class="text-muted">Đang tải danh sách máy phụ...</span>';
-   return;
- }
- if(pd)pd.innerHTML=pending.length?pending.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.id)}</code><div class="mt-1"><button class="btn btn-sm btn-success" onclick="grantDeviceAccess('${escapeHtml(d.id)}')">Cấp quyền</button></div></div>`).join(''):'<span class="text-muted">Không có yêu cầu mới.</span>';
- if(ad)ad.innerHTML=auth.length?auth.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.id)}</code><div class="mt-1"><button class="btn btn-sm btn-outline-danger" onclick="revokeDeviceAccess('${escapeHtml(d.id)}')">Thu hồi</button></div></div>`).join(''):'<span class="text-muted">Chưa cấp quyền thiết bị phụ nào.</span>';
+ if(pd)pd.innerHTML=pending.length?pending.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.deviceId||'')}</code><div class="small text-muted">${escapeHtml(d.authUid||'')}</div><div class="mt-1"><button class="btn btn-sm btn-success" onclick="grantDeviceAccess('${escapeHtml(d.authUid)}')">Cấp quyền</button></div></div>`).join(''):'<span class="text-muted">Không có yêu cầu mới.</span>';
+ if(ad)ad.innerHTML=auth.length?auth.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.id||'')}</code><div class="small text-muted">${escapeHtml(d.authUid||'')}</div><div class="mt-1"><button class="btn btn-sm btn-outline-danger" onclick="revokeDeviceAccess('${escapeHtml(d.authUid||'')}')">Thu hồi</button></div></div>`).join(''):'<span class="text-muted">Chưa cấp quyền thiết bị phụ nào.</span>';
 }
+async function loadCloudStateAndWatch(){
+ const stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
+ cloudStateLoaded=false;
+ const stateSnap=await stateRef.get();
+ if(stateSnap.exists){
+   const rawState=stateSnap.data()||{};
+   const mustRepair=cloudNeedsMandatoryRepair(rawState);
+   applyCloudState(rawState);
+   if(isMasterDevice()&&mustRepair){
+     await stateRef.set(buildCloudState(),{merge:false});
+   }
+ }else{
+   routes=mergeRoutesOntoBase(routes);ensure42RoutesLocal(routes);
+   if(isMasterDevice())await stateRef.set(buildCloudState(),{merge:false});
+ }
+ cloudStateLoaded=true;
+ refreshRouteSelect();renderRouteTable();
+ if(cloudUnsub)cloudUnsub();
+ cloudUnsub=stateRef.onSnapshot(async s=>{
+   if(!s.exists||cloudApplying)return;
+   const obj=s.data()||{};
+   const needsRepair=cloudNeedsMandatoryRepair(obj);
+   applyCloudState(obj);
+   if(isMasterDevice()&&needsRepair){
+     try{await stateRef.set(buildCloudState(),{merge:false})}catch(e){console.warn(e)}
+   }
+ },e=>cloudSetStatus('Mất đồng bộ dữ liệu: '+e.message,'danger'));
+}
+
+function startMasterDeviceRequestWatch(){
+ if(!isMasterDevice()||!cloudDb||!cloudWorkspace)return;
+ if(cloudRequestUnsub)cloudRequestUnsub();
+ cloudRequestUnsub=cloudDb.collection(`${cloudPath()}/deviceRequests`).onSnapshot(s=>{
+   cloudPendingRequests=[];
+   s.forEach(doc=>cloudPendingRequests.push({authUid:doc.id,...(doc.data()||{})}));
+   renderPermissionPanel();
+ },e=>cloudSetStatus('Không đọc được yêu cầu máy phụ: '+e.message,'danger'));
+}
+
+async function startAuthorizedCloudSession(){
+ if(cloudAuthorizedSessionStarted)return;
+ const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
+ const ms=await metaRef.get();
+ if(!ms.exists)throw new Error('Workspace chưa được máy chính khởi tạo.');
+ cloudMeta=ms.data()||{};
+ reconcileMasterIdentityFromMeta();
+ syncPermissionCacheFromMeta();
+ cloudAuthorizedSessionStarted=true;
+
+ await loadCloudStateAndWatch();
+
+ if(cloudMetaUnsub)cloudMetaUnsub();
+ cloudMetaUnsub=metaRef.onSnapshot(s=>{if(s.exists){
+   cloudMeta=s.data()||{};
+   reconcileMasterIdentityFromMeta();syncPermissionCacheFromMeta();
+   updateDeviceAccessUI();renderPermissionPanel();refreshRouteSelect($('selectRoute')?.value||'');renderRouteTable();render();
+ }},e=>cloudSetStatus('Mất đồng bộ phân quyền: '+e.message,'danger'));
+
+ await cloudLoadAndWatchPhotos();
+ updateDeviceAccessUI();renderPermissionPanel();render();
+ startPermissionAutoRefresh();
+}
+
+async function startAuxRequestWatch(){
+ const reqRef=cloudDb.doc(`${cloudPath()}/deviceRequests/${cloudUser.uid}`);
+ let snap=await reqRef.get().catch(()=>null);
+ if(!snap||!snap.exists){
+   await reqRef.set({
+     authUid:cloudUser.uid,deviceId,name:deviceName,status:'pending',
+     requestedAt:new Date().toISOString(),lastSeenAt:new Date().toISOString()
+   });
+ }else{
+   const cur=snap.data()||{};
+   await reqRef.set({deviceId,name:deviceName,lastSeenAt:new Date().toISOString()},{merge:true});
+   if(cur.status==='approved'){
+     try{await startAuthorizedCloudSession();cloudSetStatus('Đã tự kết nối • Thiết bị đã được cấp quyền','success')}catch{}
+   }
+ }
+ if(cloudOwnRequestUnsub)cloudOwnRequestUnsub();
+ cloudOwnRequestUnsub=reqRef.onSnapshot(async s=>{
+   if(!s.exists)return;
+   const r=s.data()||{};
+   if(r.status==='approved'){
+     try{
+       await startAuthorizedCloudSession();
+       cloudSetStatus('Đã được máy chính cấp quyền • Đang nhận các tuyến được giao','success');
+     }catch(e){cloudSetStatus('Đã duyệt thiết bị nhưng chưa tải được dữ liệu: '+e.message,'warning')}
+   }else if(r.status==='revoked'){
+     writePermissionCache(null);
+     cloudAuthorizedSessionStarted=false;
+     cloudSetStatus('Quyền thiết bị đã bị thu hồi.','warning');
+     updateDeviceAccessUI();render();
+   }else{
+     cloudSetStatus('Đã tự gửi yêu cầu cấp quyền • Chờ máy chính duyệt','warning');
+   }
+ },e=>cloudSetStatus('Theo dõi yêu cầu thiết bị lỗi: '+e.message,'danger'));
+}
+
 async function cloudConnect(){
  if($('cloudWorkspace')&&!String($('cloudWorkspace').value||'').trim()){
    $('cloudWorkspace').value=String((window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.workspace)||'CUALO-2026').trim()||'CUALO-2026';
  }
-
  try{
    ensureFirebase();
-   const email=MASTER_EMAIL,pass=$('cloudPassword').value,ws=($('cloudWorkspace').value||'').trim().replace(/[^a-zA-Z0-9_-]/g,'');
-   if(!ws)throw new Error('Thiếu Mã Workspace.');if(!pass||pass.length<6)throw new Error('Nhập mật khẩu Firebase của tài khoản chính.');
+   const ws=($('cloudWorkspace').value||'').trim().replace(/[^a-zA-Z0-9_-]/g,'');
+   if(!ws)throw new Error('Thiếu Mã Workspace.');
    cloudWorkspace=ws;localStorage.setItem(CLOUD_WS_STORE,ws);
-   const cred=cloudAuth.currentUser&&String(cloudAuth.currentUser.email).toLowerCase()===MASTER_EMAIL?{user:cloudAuth.currentUser}:await cloudAuth.signInWithEmailAndPassword(email,pass);
-   cloudUser=cred.user;
-   if(String(cloudUser.email||'').toLowerCase()!==MASTER_EMAIL)throw new Error('Chỉ được dùng tài khoản '+MASTER_EMAIL);
-   const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`),stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
-   let metaSnap=await metaRef.get().catch(()=>null);
-   if(!metaSnap||!metaSnap.exists){
-     cloudMeta={ownerUid:cloudUser.uid,ownerEmail:MASTER_EMAIL,allowedEmails:[MASTER_EMAIL],ownerDeviceId:null,ownerDeviceName:'',authorizedDevices:[],pendingDevices:[],routeLocks:{},surveyLocks:{},routeAssignments:{},createdAt:new Date().toISOString()};
-     await metaRef.set(cloudMeta);
-     metaSnap=await metaRef.get();
-   }
-   cloudMeta=metaSnap.data()||{};
-   reconcileMasterIdentityFromMeta();
-   if(!cloudMeta.ownerDeviceId){
-     if(confirm('Workspace chưa có máy chính. Bạn có muốn đặt THIẾT BỊ NÀY làm MÁY CHÍNH không?')){
-       cloudMeta.ownerDeviceId=deviceId;cloudMeta.ownerDeviceName=deviceName;cloudMeta.authorizedDevices=cloudMeta.authorizedDevices||[];cloudMeta.pendingDevices=cloudMeta.pendingDevices||[];cloudMeta.routeLocks=cloudMeta.routeLocks||{};cloudMeta.surveyLocks=cloudMeta.surveyLocks||{};cloudMeta.routeAssignments=cloudMeta.routeAssignments||{};
-       await metaRef.set({ownerDeviceId:deviceId,ownerDeviceName:deviceName,authorizedDevices:cloudMeta.authorizedDevices,pendingDevices:cloudMeta.pendingDevices,routeLocks:cloudMeta.routeLocks,surveyLocks:cloudMeta.surveyLocks,routeAssignments:cloudMeta.routeAssignments},{merge:true});
-       rememberThisDeviceAsMaster();
+   cloudAuthorizedSessionStarted=false;
+
+   if(isMasterDevice()){
+     const pass=$('cloudPassword').value;
+     if(!pass||pass.length<6)throw new Error('Nhập mật khẩu Firebase trên máy chính.');
+     if(cloudAuth.currentUser && String(cloudAuth.currentUser.email||'').toLowerCase()!==MASTER_EMAIL){
+       await cloudAuth.signOut();
      }
-   }
-   metaSnap=await metaRef.get();cloudMeta=metaSnap.data()||{};
-   reconcileMasterIdentityFromMeta();
-   if(!isMasterDevice()&&!isAuthorizedDevice())await requestDeviceAccess();
-   cloudStateLoaded=false;
-   const stateSnap=await stateRef.get();
-   if(stateSnap.exists){
-     const rawState=stateSnap.data()||{};
-     const mustRepair=cloudNeedsMandatoryRepair(rawState);
-     applyCloudState(rawState);
-     // Mọi máy đều giữ 42 tuyến ở bộ nhớ; CHỈ máy chính được ghi bản phục hồi lên Firestore.
-     if(isMasterDevice() && mustRepair){
-       await stateRef.set(buildCloudState(),{merge:false});
-       cloudSetStatus(`Đã phục hồi đủ ${defaultRoutes.length} tuyến lên Cloud; dữ liệu khảo sát, chiều cao và ảnh hiện có vẫn được giữ.`,'success');
+     const cred=cloudAuth.currentUser&&String(cloudAuth.currentUser.email||'').toLowerCase()===MASTER_EMAIL
+       ? {user:cloudAuth.currentUser}
+       : await cloudAuth.signInWithEmailAndPassword(MASTER_EMAIL,pass);
+     cloudUser=cred.user;
+
+     const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
+     let ms=await metaRef.get().catch(()=>null);
+     if(!ms||!ms.exists){
+       cloudMeta={
+         ownerUid:cloudUser.uid,ownerEmail:MASTER_EMAIL,allowedEmails:[MASTER_EMAIL],
+         ownerDeviceId:deviceId,ownerDeviceName:deviceName,
+         authorizedDevices:[],authorizedUids:{},
+         routeLocks:{},surveyLocks:{},routeAssignments:{},
+         createdAt:new Date().toISOString()
+       };
+       await metaRef.set(cloudMeta);
+     }else{
+       cloudMeta=ms.data()||{};
+       const patch={};
+       if(!cloudMeta.ownerDeviceId){patch.ownerDeviceId=deviceId;patch.ownerDeviceName=deviceName}
+       if(!cloudMeta.authorizedUids)patch.authorizedUids={};
+       if(Object.keys(patch).length)await metaRef.set(patch,{merge:true});
      }
+     await startAuthorizedCloudSession();
+     startMasterDeviceRequestWatch();
+     cloudSetStatus(`Đã kết nối • MÁY CHÍNH • ${MASTER_EMAIL}`,'success');
    }else{
-     routes=mergeRoutesOntoBase(routes);
-     ensure42RoutesLocal(routes);
-     if(isMasterDevice()){
-       await stateRef.set(buildCloudState(),{merge:false});
-       cloudSetStatus(`Đã khởi tạo Cloud với đủ ${defaultRoutes.length} tuyến bắt buộc.`,'success');
+     if(cloudAuth.currentUser && String(cloudAuth.currentUser.email||'').toLowerCase()===MASTER_EMAIL){
+       await cloudAuth.signOut();
      }
+     cloudUser=await ensureDeviceFirebaseAccount();
+     updateDeviceAccessUI();
+     await startAuxRequestWatch();
    }
-   cloudStateLoaded=true;
-   refreshRouteSelect();
-   renderRouteTable();
-   if(cloudUnsub)cloudUnsub();
-   cloudUnsub=stateRef.onSnapshot(async s=>{
-     if(!s.exists||cloudApplying)return;
-     const obj=s.data()||{};
-     const needsRepair=cloudNeedsMandatoryRepair(obj);
-     applyCloudState(obj);
-     if(isMasterDevice()&&needsRepair){
-       try{
-         await stateRef.set(buildCloudState(),{merge:false});
-         cloudSetStatus(`Phát hiện Cloud thiếu tuyến; máy chính đã phục hồi đủ ${defaultRoutes.length} tuyến mà không xóa dữ liệu khảo sát.`,'success');
-       }catch(e){cloudSetStatus('Không thể tự phục hồi danh mục tuyến Cloud: '+e.message,'danger')}
-     }
-   },e=>cloudSetStatus('Mất đồng bộ dữ liệu: '+e.message,'danger'));
-   if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=metaRef.onSnapshot(s=>{if(s.exists){
-     cloudMeta=s.data();reconcileMasterIdentityFromMeta();syncPermissionCacheFromMeta();
-     updateDeviceAccessUI();renderPermissionPanel();refreshRouteSelect($('selectRoute').value);renderRouteTable();render();
-   }},e=>cloudSetStatus('Mất đồng bộ phân quyền: '+e.message,'danger'));
-   await cloudLoadAndWatchPhotos();
-   syncPermissionCacheFromMeta();
-   updateDeviceAccessUI();renderPermissionPanel();render();
-   startPermissionAutoRefresh();
-   cloudSetStatus(isMasterDevice()?`Đã kết nối • MÁY CHÍNH • ${MASTER_EMAIL}`:isAuthorizedDevice()?`Đã kết nối • Thiết bị đã được cấp quyền`:`Đã kết nối • Đang chờ máy chính cấp quyền`,'success');
  }catch(e){cloudSetStatus('Không kết nối được Cloud: '+e.message,'danger')}
 }
+
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:20,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:21,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -1367,7 +1511,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
        }
        tx.set(ref,{
          ...remote,
-         version:19,
+         version:21,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor(),
          routes:remoteRoutes,
@@ -1383,7 +1527,15 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
  }
 }
 async function cloudDisconnect(){clearInterval(permissionRefreshTimer);permissionRefreshTimer=null;
- try{if(cloudUnsub)cloudUnsub();cloudUnsub=null;if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=null;if(cloudPhotoUnsub)cloudPhotoUnsub();cloudPhotoUnsub=null;if(cloudAuth)await cloudAuth.signOut()}catch{}
+ try{
+   if(cloudUnsub)cloudUnsub();cloudUnsub=null;
+   if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=null;
+   if(cloudPhotoUnsub)cloudPhotoUnsub();cloudPhotoUnsub=null;
+   if(cloudRequestUnsub)cloudRequestUnsub();cloudRequestUnsub=null;
+   if(cloudOwnRequestUnsub)cloudOwnRequestUnsub();cloudOwnRequestUnsub=null;
+   if(cloudAuth)await cloudAuth.signOut();
+ }catch{}
+ cloudPendingRequests=[];cloudAuthorizedSessionStarted=false;
  cloudDb=null;cloudAuth=null;cloudUser=null;cloudMeta=null;cloudWorkspace='';updateDeviceAccessUI();$('permissionPanel')?.classList.add('d-none');cloudSetStatus(isMasterDevice()?'Đã ngắt Cloud. Máy chính vẫn sửa dữ liệu cục bộ; kết nối lại để đồng bộ và cấp quyền máy phụ.':'Đã ngắt Cloud. Máy phụ cần kết nối lại để sử dụng quyền đã cấp.','info')
 }
 window.addEventListener('focus',()=>{if(cloudUser&&!isMasterDevice())syncMyPermissionNow(false)});
@@ -1398,6 +1550,15 @@ function initCloudUI(){
  if($('cloudEmail'))$('cloudEmail').value=MASTER_EMAIL;
  if($('deviceIdInput'))$('deviceIdInput').value=deviceId;
  if($('deviceNameInput'))$('deviceNameInput').value=deviceName;
+
+ const master=isMasterDevice();
+ $('masterEmailWrap')?.classList.toggle('d-none',!master);
+ $('masterPasswordWrap')?.classList.toggle('d-none',!master);
+ if($('cloudConnectBtn'))$('cloudConnectBtn').textContent=master?'Kết nối máy chính':'Kết nối máy phụ';
+ if(!master){
+   if($('cloudAlert'))$('cloudAlert').textContent='Máy phụ tự kết nối nền, không cần mật khẩu máy chính. Nếu chưa được duyệt, hệ thống sẽ tự gửi yêu cầu bằng Mã thiết bị.';
+   setTimeout(()=>cloudConnect(),700);
+ }
 }
 
 function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),settings:{mudPrice:Number($('cfgMudPrice').value),pitPrice:Number($('cfgPitPrice').value)},routes,data};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'Sao_luu_khao_sat_muong_'+today()+'.json')}

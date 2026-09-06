@@ -1,31 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    function masterAccount() {
-      return signedIn() && request.auth.token.email == 'binhhu19802014@gmail.com';
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isMaster() {
+      return signedIn()
+        && request.auth.token.email == 'binhhu19802014@gmail.com';
     }
     function meta(ws) {
       return get(/databases/$(database)/documents/workspaces/$(ws)/config/meta).data;
     }
-    function isWorkspaceOwner(ws) {
-      return masterAccount() && meta(ws).ownerUid == request.auth.uid;
+    function isAuthorizedDevice(ws) {
+      return signedIn()
+        && meta(ws).authorizedUids[request.auth.uid] == true;
     }
 
-    // Toàn bộ dữ liệu Cloud chỉ chấp nhận tài khoản Firebase dùng chung duy nhất.
+    match /workspaces/{ws}/deviceRequests/{uid} {
+      // Máy phụ chỉ tạo/đọc/cập nhật yêu cầu của chính tài khoản thiết bị nền.
+      allow create: if signedIn()
+                    && request.auth.uid == uid
+                    && request.resource.data.authUid == request.auth.uid;
+      allow read: if isMaster() || (signedIn() && request.auth.uid == uid);
+      allow update: if isMaster()
+                    || (signedIn()
+                        && request.auth.uid == uid
+                        && request.resource.data.authUid == resource.data.authUid);
+      allow delete: if isMaster();
+    }
+
     match /workspaces/{ws}/config/meta {
-      allow create: if masterAccount()
-                    && request.resource.data.ownerUid == request.auth.uid
-                    && request.resource.data.ownerEmail == 'binhhu19802014@gmail.com';
-      allow read, update, delete: if masterAccount() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isMaster();
+
+      // Máy phụ chỉ được đọc meta SAU KHI đã được máy chính duyệt.
+      allow read: if isMaster()
+                  || (signedIn() && resource.data.authorizedUids[request.auth.uid] == true);
+
+      // Máy chính quản trị toàn bộ meta.
+      // Máy phụ đã được duyệt chỉ được thay đổi 2 nhóm khóa sau khi sửa 1 lần.
+      allow update: if isMaster()
+                    || (isAuthorizedDevice(ws)
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['routeLocks','surveyLocks','permissionUpdatedAt']));
+      allow delete: if isMaster();
     }
 
     match /workspaces/{ws}/state/{docId} {
-      allow read, write: if isWorkspaceOwner(ws);
+      allow read, write: if isMaster() || isAuthorizedDevice(ws);
     }
 
     match /workspaces/{ws}/photos/{docId} {
-      allow read, write: if isWorkspaceOwner(ws);
+      allow read, write: if isMaster() || isAuthorizedDevice(ws);
     }
   }
 }
