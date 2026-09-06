@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V17 Máy chính độc lập trước Firebase</title>
+<title>QL Khảo sát Mương Cửa Lò - V18 Máy chính cố định theo Device ID</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -110,7 +110,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
   </div></div>
  </div>
 </main>
-<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến dựng trước. Máy chính được nhận diện cục bộ trước Firebase và luôn có Sửa + Cấp tuyến; Firebase chỉ bổ sung danh sách máy phụ, trạng thái khóa và đồng bộ Cloud.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến dựng trước. Máy chính được nhận diện trực tiếp bằng Device ID cố định, không phụ thuộc Workspace/Firebase; Cloud chỉ dùng để đồng bộ và cấp tuyến cho máy phụ.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
 <div class="card border p-3 mb-3 shadow-none"><input type="hidden" id="routeEditId"><div class="row g-2"><div class="col-md-2"><label class="form-label">Mã/STT tuyến</label><input id="routeIdInput" type="number" min="1" class="form-control" placeholder="Tự tăng nếu bỏ trống"></div><div class="col-md-4"><label class="form-label">Tên tuyến đường</label><input id="routeNameInput" class="form-control" placeholder="VD: NGUYỄN HUỆ"></div><div class="col-md-3"><label class="form-label">Điểm đầu</label><input id="routeStartInput" class="form-control"></div><div class="col-md-3"><label class="form-label">Điểm cuối</label><input id="routeEndInput" class="form-control"></div><div class="col-md-2"><label class="form-label">Chiều dài (m)</label><input id="routeLengthInput" type="number" min="0" step="0.01" class="form-control"></div><div class="col-md-4"><label class="form-label">Ghi chú tuyến</label><input id="routeNoteInput" class="form-control" placeholder="Khu vực, loại tuyến..."></div><div class="col-md-4"><label class="form-label">Quy cách mương mặc định</label><input id="routeSpecInput" class="form-control" list="specOptions" placeholder="VD: Mương BTCT đúc sẵn, có tấm đan"></div><div class="col-md-8 d-flex align-items-end gap-2"><button class="btn btn-main" type="button" onclick="saveRoute()">Lưu / cập nhật tuyến</button><button class="btn btn-outline-secondary" type="button" onclick="resetRouteForm()">Nhập tuyến mới</button><button class="btn btn-outline-success" type="button" onclick="exportRoutesExcel()">Xuất danh mục</button><label class="btn btn-outline-primary mb-0">Nhập Excel<input id="routeImportFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="importRoutesExcel(event)"></label></div></div></div>
 <div class="row g-2 mb-2"><div class="col-md-6"><input id="routeSearch" class="form-control" placeholder="Tìm tên tuyến, điểm đầu, điểm cuối..." oninput="renderRouteTable()"></div><div class="col-md-6 text-md-end small text-muted align-self-center">Tổng số tuyến: <b id="routeCount">0</b></div></div>
 <div class="table-responsive" style="max-height:430px"><table class="table table-bordered table-hover align-middle small"><thead class="table-light"><tr><th>STT</th><th>Mã</th><th>Tên tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Chiều dài (m)</th><th>Ghi chú</th><th>Quy cách mặc định</th><th>Thao tác</th></tr></thead><tbody id="routeTableBody"></tbody></table></div>
@@ -241,8 +241,9 @@ const STORE='CUALO_DRAINAGE_SURVEY_V4', SETTINGS='CUL0_DRAINAGE_SETTINGS_V2';
 const LEGACY_STORES=['CUL0_DRAINAGE_SURVEY_V2','SURVEY_DATA_STORE','CUALO_DRAINAGE_SURVEY_V3'];
 let data=[]; let currentImage=''; let pendingImagePromise=null; let photoChanged=false; let lastSavedRouteId=null;
 const MASTER_EMAIL='binhhu19802014@gmail.com';
+const MASTER_DEVICE_ID='e5bd6766-c82f-4440-a0d0-fd2887dfce08';
 const DEVICE_ID_STORE='CUALO_DEVICE_ID_V1', DEVICE_NAME_STORE='CUALO_DEVICE_NAME_V1';
-const MASTER_DEVICE_MARKER_STORE='CUALO_MASTER_DEVICE_MARKER_V17';
+const MASTER_DEVICE_MARKER_STORE='CUALO_MASTER_DEVICE_MARKER_V18';
 let deviceId='',deviceName='',currentUser=null;
 
 function localMasterDeviceId(){return String(localStorage.getItem(MASTER_DEVICE_MARKER_STORE)||'')}
@@ -254,6 +255,11 @@ function hasMasterEmailSession(){
  return email===MASTER_EMAIL;
 }
 function reconcileMasterIdentityFromMeta(){
+ // Device ID cố định của máy chính luôn ưu tiên cao nhất.
+ if(String(deviceId)===MASTER_DEVICE_ID){
+   rememberThisDeviceAsMaster();
+   return;
+ }
  if(!cloudMeta)return;
  const owner=String(cloudMeta.ownerDeviceId||'');
  if(owner && owner===String(deviceId))rememberThisDeviceAsMaster();
@@ -268,6 +274,7 @@ function initDeviceIdentity(){
  localStorage.setItem(DEVICE_ID_STORE,deviceId);
  deviceName=localStorage.getItem(DEVICE_NAME_STORE)||('Thiết bị '+deviceId.slice(0,8));
  localStorage.setItem(DEVICE_NAME_STORE,deviceName);
+ if(String(deviceId)===MASTER_DEVICE_ID)rememberThisDeviceAsMaster();
  currentUser={id:deviceId,fullName:deviceName,username:deviceId,role:'Thiết bị'};
  if($('deviceIdInput'))$('deviceIdInput').value=deviceId;
  if($('deviceNameInput'))$('deviceNameInput').value=deviceName;
@@ -280,6 +287,12 @@ function saveDeviceName(){
 }
 function getUpdateActor(){return isMasterDevice()?`MÁY CHÍNH • ${deviceName}`:`${deviceName} • ${deviceId.slice(0,8)}`}
 function isMasterDevice(){
+ // V18: đúng deviceId máy chính thì nhận quyền NGAY, không cần Workspace/Firebase/mạng.
+ if(String(deviceId)===MASTER_DEVICE_ID){
+   rememberThisDeviceAsMaster();
+   return true;
+ }
+ // Giữ cơ chế V17 để tương thích dữ liệu ownerDeviceId cũ.
  if(isLocalMasterDevice())return true;
  if(cloudMeta && String(cloudMeta.ownerDeviceId||'')===String(deviceId) && hasMasterEmailSession()){
    rememberThisDeviceAsMaster();return true;
@@ -370,7 +383,12 @@ async function unlockSurveyForDevices(id){
 }
 function updateDeviceAccessUI(){
  const role=isMasterDevice()?'MÁY CHÍNH':isAuthorizedDevice()?'ĐÃ ĐƯỢC CẤP QUYỀN':'CHƯA ĐƯỢC CẤP QUYỀN';
- const label=$('deviceRoleLabel');if(label)label.textContent=cloudUser?`${role} • ${deviceName}`:`Chưa kết nối Cloud • ${deviceName||'Thiết bị'}`;
+ const label=$('deviceRoleLabel');
+ if(label){
+   label.textContent=isMasterDevice()
+     ? `MÁY CHÍNH • ${deviceName}`
+     : cloudUser?`${role} • ${deviceName}`:`Chưa kết nối Cloud • ${deviceName||'Thiết bị'}`;
+ }
  const st=$('deviceAccessStatus');if(st){
    const cls=isMasterDevice()?'success':isAuthorizedDevice()?'primary':cloudUser?'warning':'secondary';
    st.className=`alert alert-${cls} py-2 small mt-2 mb-0`;
@@ -570,7 +588,7 @@ async function unlockRouteForDevices(id){
 function routeAssignNeedsCloud(routeId){
  if(!isMasterDevice())return alert('Chỉ máy chính được cấp tuyến.');
  if(!cloudDb||!cloudUser||!cloudWorkspace){
-   alert(`Máy chính đã được nhận diện. Để cấp tuyến ${routeId}, hãy vào Cloud → Kết nối để tải danh sách máy phụ.`);
+   alert(`Máy chính đã có quyền Sửa độc lập. Muốn CẤP TUYẾN ${routeId} cho máy phụ, hãy kết nối Cloud để tải danh sách máy phụ.`);
    try{bootstrap.Modal.getOrCreateInstance($('cloudModal')).show()}catch{}
    return;
  }
@@ -1016,6 +1034,10 @@ function renderPermissionPanel(){
  if(ad)ad.innerHTML=auth.length?auth.map(d=>`<div class="border-bottom py-2"><b>${escapeHtml(d.name||'Thiết bị')}</b><br><code>${escapeHtml(d.id)}</code><div class="mt-1"><button class="btn btn-sm btn-outline-danger" onclick="revokeDeviceAccess('${escapeHtml(d.id)}')">Thu hồi</button></div></div>`).join(''):'<span class="text-muted">Chưa cấp quyền thiết bị phụ nào.</span>';
 }
 async function cloudConnect(){
+ if($('cloudWorkspace')&&!String($('cloudWorkspace').value||'').trim()){
+   $('cloudWorkspace').value=String((window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.workspace)||'CUALO-2026').trim()||'CUALO-2026';
+ }
+
  try{
    ensureFirebase();
    const email=MASTER_EMAIL,pass=$('cloudPassword').value,ws=($('cloudWorkspace').value||'').trim().replace(/[^a-zA-Z0-9_-]/g,'');
@@ -1085,7 +1107,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:17,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:18,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -1176,8 +1198,8 @@ function initCloudUI(){
  initDeviceIdentity();
  updateDeviceAccessUI();
  renderPermissionPanel();
- const fixedWs=(window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.workspace)||'CUALO-2026';
- if($('cloudWorkspace'))$('cloudWorkspace').value=fixedWs;
+ const fixedWs=String((window.APP_CLOUD_CONFIG&&window.APP_CLOUD_CONFIG.workspace)||'CUALO-2026').trim()||'CUALO-2026';
+ if($('cloudWorkspace')){$('cloudWorkspace').value=fixedWs;$('cloudWorkspace').readOnly=true;}
  if($('cloudEmail'))$('cloudEmail').value=MASTER_EMAIL;
  if($('deviceIdInput'))$('deviceIdInput').value=deviceId;
  if($('deviceNameInput'))$('deviceNameInput').value=deviceName;
