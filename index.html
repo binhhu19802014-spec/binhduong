@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V33 Sửa xóa tuyến máy chủ</title>
+<title>QL Khảo sát Mương Cửa Lò - V35 Máy chủ luôn được sửa số liệu</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -145,7 +145,21 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
   </div></div>
 
   <div class="col-xl-8 col-lg-7"><div class="card p-3 p-md-4">
-   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><h5 class="section-title mb-0">Dữ liệu khảo sát</h5><div class="no-print d-flex gap-2"><button class="btn btn-success btn-sm fw-bold" onclick="exportExcel()">Xuất Excel</button><button class="btn btn-outline-danger btn-sm" onclick="clearAll()">Xóa toàn bộ</button></div></div>
+   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h5 class="section-title mb-0">Dữ liệu khảo sát</h5>
+      <div class="no-print d-flex gap-2 flex-wrap">
+        <button class="btn btn-success btn-sm fw-bold" onclick="exportExcel()">Xuất Excel</button>
+        <div class="dropdown" id="masterDeleteMenuWrap">
+          <button class="btn btn-outline-danger btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">Xóa / đặt lại dữ liệu</button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><button class="dropdown-item text-danger" type="button" onclick="masterDeleteAllSurveyData()">Xóa toàn bộ số liệu khảo sát + ảnh</button></li>
+            <li><button class="dropdown-item text-danger" type="button" onclick="masterDeleteAllSupplementalRoutes()">Xóa toàn bộ tuyến bổ sung + dữ liệu liên quan</button></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><button class="dropdown-item fw-bold text-danger" type="button" onclick="masterFactoryResetWorkspace()">Đặt lại toàn bộ hệ thống về 42 tuyến gốc</button></li>
+          </ul>
+        </div>
+      </div>
+    </div>
    <div class="table-responsive"><table class="table table-bordered table-hover align-middle small mb-0"><thead class="table-light"><tr><th>STT</th><th>Tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Ngày</th><th>Ảnh</th><th>Thông số</th><th>Cao mương (m)</th><th>Chiều dài phải (m)</th><th>Hố thu phải</th><th>Chiều dài trái (m)</th><th>Hố thu trái</th><th>Mức độ</th><th>Bùn (m³)</th><th>Tổng hố thu</th><th>Dự toán</th><th class="no-print">Thao tác</th></tr></thead><tbody id="tableBody"></tbody></table></div>
   </div></div>
  </div>
@@ -471,12 +485,16 @@ function saveDeviceName(){
 }
 function getUpdateActor(){return isMasterDevice()?`MÁY CHÍNH • ${deviceName}`:`${deviceName} • ${deviceId.slice(0,8)}`}
 function isMasterDevice(){
- // V18: đúng deviceId máy chính thì nhận quyền NGAY, không cần Workspace/Firebase/mạng.
+ // V35: tài khoản quản trị chính luôn có quyền máy chủ.
+ if(hasMasterEmailSession()){
+   rememberThisDeviceAsMaster();
+   return true;
+ }
+ // Thiết bị chính cố định vẫn được nhận quyền ngay cả khi chưa kết nối Cloud.
  if(String(deviceId)===MASTER_DEVICE_ID){
    rememberThisDeviceAsMaster();
    return true;
  }
- // Giữ cơ chế V17 để tương thích dữ liệu ownerDeviceId cũ.
  if(isLocalMasterDevice())return true;
  if(cloudMeta && String(cloudMeta.ownerDeviceId||'')===String(deviceId) && hasMasterEmailSession()){
    rememberThisDeviceAsMaster();return true;
@@ -898,7 +916,7 @@ async function saveNewRouteFromSurvey(){
      const maxId=remoteRoutes.reduce((m,r)=>Math.max(m,Number(r.id)||0),0),newId=maxId+1,now=new Date().toISOString();
      createdRoute={id:newId,name,dau,cuoi,tong,note,defaultSpec,isSupplemental:true,sharedSurveyAccess:true,createdAt:now,createdBy:getUpdateActor(),createdByDeviceId:deviceId,updatedAt:now,updatedBy:getUpdateActor()};
      remoteRoutes.push(createdRoute);remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
-     tx.set(stateRef,{...obj,version:33,routes:remoteRoutes,updatedAt:now,updatedBy:getUpdateActor()},{merge:false});
+     tx.set(stateRef,{...obj,version:35,routes:remoteRoutes,updatedAt:now,updatedBy:getUpdateActor()},{merge:false});
    });
    if(!createdRoute)throw new Error('Không tạo được tuyến mới.');
    const fresh=await stateRef.get();if(fresh.exists)applyCloudState(fresh.data()||{});
@@ -1243,7 +1261,7 @@ async function saveNewRoute(){
      remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
      tx.set(ref,{
        ...obj,
-       version:33,
+       version:35,
        routes:remoteRoutes,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
@@ -1373,7 +1391,7 @@ async function deleteRoute(id){
 
        tx.set(stateRef,{
          ...state,
-         version:33,
+         version:35,
          routes:remoteRoutes,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor()
@@ -1593,16 +1611,17 @@ function readNumber(id, fallback=0){
 async function saveRecord(e){
  if(e){e.preventDefault();e.stopPropagation();}
  try{
-   if(!ensureDeviceCanUse('lưu/cập nhật khảo sát'))return false;
+   const masterEdit=isMasterDevice();
+   if(!masterEdit&&!ensureDeviceCanUse('lưu/cập nhật khảo sát'))return false;
    const routeId=String($('selectRoute').value||'').trim();
    const r=routes.find(x=>String(x.id)===routeId);
    if(!r){setSaveStatus('Chưa lưu: vui lòng chọn tuyến đường.','warning');alert('Vui lòng chọn tuyến đường trước khi lưu.');return false;}
-   if(!isMasterDevice()&&!isRouteAssignedToCurrentDevice(r.id)){
+   if(!masterEdit&&!isRouteAssignedToCurrentDevice(r.id)){
      setSaveStatus('Tuyến này chưa được máy chính cấp cho thiết bị này.','warning');
      alert('Bạn chỉ được cập nhật các tuyến đã được máy chính cấp.');
      return false;
    }
-   if(!isMasterDevice()){
+   if(!masterEdit){
      const ok=await claimSurveyEditLock(r.id);if(!ok)return false;
    }
    if(pendingImagePromise){
@@ -1653,14 +1672,14 @@ async function saveRecord(e){
      try{localStorage.setItem(STORE,JSON.stringify(data))}catch(e){console.warn('PHOTO VERIFY CACHE',e)}
    }
    if(cloudDb&&cloudUser&&cloudWorkspace){
-     // Đẩy dữ liệu khảo sát (bao gồm chiều cao mương) lên Cloud ngay lập tức.
-     const stateOk=await cloudPushState(true,r.id,'survey');
+     // V35: máy chủ dùng luồng ghi đè riêng, không phụ thuộc khóa 60 phút/route assignment.
+     const stateOk=masterEdit
+       ?await masterUpsertSurveyRecordToCloud(r.id)
+       :await cloudPushState(true,r.id,'survey');
      if(!stateOk){
-       setSaveStatus('Đã lưu trên máy nhưng dữ liệu Cloud chưa đồng bộ.','warning');
+       setSaveStatus(masterEdit?'Máy chủ đã lưu trên máy nhưng chưa ghi được lên Cloud.':'Đã lưu trên máy nhưng dữ liệu Cloud chưa đồng bộ.','warning');
      }else{
-       // Chỉ sau khi cập nhật Cloud THÀNH CÔNG mới bắt đầu chu kỳ 60 phút chờ khóa.
-       if(!isMasterDevice())await scheduleDelayedAuxLockAfterSuccessfulUpdate(r.id,'survey');
-       // Xác nhận lại đúng bản Cloud sau khi commit; từ đây mọi máy cùng một nguồn số liệu.
+       if(!masterEdit)await scheduleDelayedAuxLockAfterSuccessfulUpdate(r.id,'survey');
        await pullSharedStateNow(false);
      }
      // Sau khi state đã có bản ghi tuyến, mới đẩy ảnh riêng.
@@ -1707,7 +1726,7 @@ async function recalcAll(){
        return y;
      });
      tx.set(ref,{
-       ...obj,version:33,data:remoteData,
+       ...obj,version:35,data:remoteData,
        settings:{...(obj.settings||{}),mudPrice,pitPrice},
        updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()
      },{merge:false});
@@ -1717,13 +1736,20 @@ async function recalcAll(){
  }catch(e){setSharedDataStatus('Lỗi đồng bộ đơn giá: '+e.message,'danger')}
 }
 
-function render(){const q=$('searchText').value.toLowerCase().trim(),lv=$('filterLevel').value; const rows=data.filter(x=>(!lv||x.mucDo===lv)&&(!q||[x.ten,x.diemDau,x.diemCuoi,x.quyCach,x.ghiChu].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.idTuyen-b.idTuyen); let totalMud=0,totalCost=0,totalPits=0,totalLen=0,severe=0; data.forEach(x=>{totalMud+=Number(x.khoiLuongBun)||0;totalCost+=Number(x.thanhTien)||0;totalPits+=Number(x.hoThu)||0;totalLen+=Number(x.chieuDai)||0;if(x.mucDo!=='Bình thường')severe++}); $('kpiRoutes').textContent=`${data.length}/${routes.length}`;$('kpiLength').textContent=totalLen.toLocaleString('vi-VN')+' m';$('kpiMud').textContent=totalMud.toFixed(2)+' m³';$('kpiPits').textContent=totalPits.toLocaleString('vi-VN');$('kpiSevere').textContent=severe;$('kpiCost').textContent=money(totalCost);
- const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="17" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • H=${Number(x.cao||0)}m • bùn=${x.dayBun}m</span></td><td class="fw-bold">${Number(x.cao||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap">${(()=>{const sl=surveyLockInfo(x.idTuyen);if(isMasterDevice())return `<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa</button>${isActiveAuxLock(sl)?` <button class="btn btn-warning btn-sm" onclick="unlockSurveyForDevices(${x.idTuyen})">Mở khóa tuyến</button>`:''}`;if(!isAuthorizedDevice())return '<span class="badge text-bg-warning">Chưa cấp quyền thiết bị</span>';if(!isRouteAssignedToCurrentDevice(x.idTuyen))return '<span class="badge text-bg-light border">Đã cấp quyền máy • Chưa cấp tuyến</span>';return isActiveAuxLock(sl)
+function refreshMasterDeleteControls(){
+ const wrap=$('masterDeleteMenuWrap');
+ if(wrap)wrap.style.display=isMasterDevice()?'':'none';
+}
+function render(){
+ refreshMasterDeleteControls();const q=$('searchText').value.toLowerCase().trim(),lv=$('filterLevel').value; const rows=data.filter(x=>(!lv||x.mucDo===lv)&&(!q||[x.ten,x.diemDau,x.diemCuoi,x.quyCach,x.ghiChu].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.idTuyen-b.idTuyen); let totalMud=0,totalCost=0,totalPits=0,totalLen=0,severe=0; data.forEach(x=>{totalMud+=Number(x.khoiLuongBun)||0;totalCost+=Number(x.thanhTien)||0;totalPits+=Number(x.hoThu)||0;totalLen+=Number(x.chieuDai)||0;if(x.mucDo!=='Bình thường')severe++}); $('kpiRoutes').textContent=`${data.length}/${routes.length}`;$('kpiLength').textContent=totalLen.toLocaleString('vi-VN')+' m';$('kpiMud').textContent=totalMud.toFixed(2)+' m³';$('kpiPits').textContent=totalPits.toLocaleString('vi-VN');$('kpiSevere').textContent=severe;$('kpiCost').textContent=money(totalCost);
+ const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="17" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • H=${Number(x.cao||0)}m • bùn=${x.dayBun}m</span></td><td class="fw-bold">${Number(x.cao||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap">${(()=>{const sl=surveyLockInfo(x.idTuyen);if(isMasterDevice())return `<button class="btn btn-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa / cập nhật</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa</button>${isActiveAuxLock(sl)?` <button class="btn btn-warning btn-sm" onclick="unlockSurveyForDevices(${x.idTuyen})">Mở khóa tuyến</button>`:''}`;if(!isAuthorizedDevice())return '<span class="badge text-bg-warning">Chưa cấp quyền thiết bị</span>';if(!isRouteAssignedToCurrentDevice(x.idTuyen))return '<span class="badge text-bg-light border">Đã cấp quyền máy • Chưa cấp tuyến</span>';return isActiveAuxLock(sl)
  ?`<span class="badge text-bg-secondary">${escapeHtml(lockStatusText(sl))}</span>`
  :`${isPendingAuxLock(sl)?`<span class="badge text-bg-warning me-1">Còn ${lockRemainingMinutes(sl)} phút trước khi khóa</span>`:''}<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa / cập nhật</button>`})()}</td></tr>`}).join('');}
 function editRecord(id){
- if(!ensureDeviceCanUse('sửa khảo sát'))return;
- const sl=surveyLockInfo(id);if(!isMasterDevice()&&isActiveAuxLock(sl))return alert('Khảo sát tuyến này đã khóa sau 60 phút. Chỉ máy chính mới có thể mở lại.');
+ const masterEdit=isMasterDevice();
+ if(!masterEdit&&!ensureDeviceCanUse('sửa khảo sát'))return;
+ const sl=surveyLockInfo(id);
+ if(!masterEdit&&isActiveAuxLock(sl))return alert('Khảo sát tuyến này đã khóa sau 60 phút. Chỉ máy chính mới có thể mở lại.');
  const x=data.find(r=>String(r.idTuyen)===String(id));if(!x)return;
  $('editId').value=id;$('selectRoute').value=id;loadRoute();
  $('surveyDate').value=x.ngay||today();$('surveyStart').value=x.diemDau||'';$('surveyEnd').value=x.diemCuoi||'';
@@ -1734,7 +1760,7 @@ function editRecord(id){
  currentImage=x.hinhAnh||'';savedImageBeforeEdit=currentImage;pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';
  if(currentImage){$('photoPreview').src=currentImage;$('photoPreviewWrap').classList.remove('d-none');if($('photoStatus'))$('photoStatus').textContent='Đang dùng ảnh đã lưu. Chọn ảnh mới để thay thế.';}
  else{$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Bản ghi này chưa có ảnh.';}
- $('formTitle').textContent='Chỉnh sửa khảo sát';$('cancelEdit').classList.remove('d-none');window.scrollTo({top:0,behavior:'smooth'});
+ $('formTitle').textContent=masterEdit?'MÁY CHỦ - Chỉnh sửa khảo sát (không giới hạn)':'Chỉnh sửa khảo sát';$('cancelEdit').classList.remove('d-none');if(masterEdit)setSaveStatus('Máy chủ được phép sửa và ghi đè số liệu của tuyến này, không phụ thuộc trạng thái khóa.','info');window.scrollTo({top:0,behavior:'smooth'});
 }
 function refreshPhotoPreviewUI(){
  if(currentImage){
@@ -1772,7 +1798,200 @@ function markSavedPhotoForDeletion(){
 function removeCurrentPhoto(){markSavedPhotoForDeletion();}
 function resetForm(){$('surveyForm').reset();$('editId').value='';$('surveyDate').value=today();$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('width').value=.5;$('height').value=0;currentImage='';savedImageBeforeEdit='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');loadRoute();}
 async function deleteRecord(id){if(!ensureMaster('xóa dữ liệu khảo sát'))return;if(confirm('Xóa bản ghi tuyến này?')){data=data.filter(x=>String(x.idTuyen)!==String(id));persist();if(cloudDb&&cloudUser&&cloudWorkspace)await cloudPushPhoto(id,'');render()}}
-function clearAll(){if(!ensureMaster('xóa toàn bộ dữ liệu khảo sát'))return;if(confirm('Xóa TOÀN BỘ dữ liệu khảo sát? Hành động này không thể hoàn tác nếu chưa sao lưu.')){data=[];persist();render()}}
+async function deleteAllCloudPhotos(){
+ if(!cloudDb||!cloudWorkspace)return;
+ try{
+   const snap=await cloudDb.collection(`${cloudPath()}/photos`).get();
+   if(snap.empty)return;
+   const chunks=[];
+   let batch=cloudDb.batch(),count=0;
+   for(const doc of snap.docs){
+     batch.delete(doc.ref);count++;
+     if(count>=400){chunks.push(batch.commit());batch=cloudDb.batch();count=0;}
+   }
+   if(count)chunks.push(batch.commit());
+   await Promise.all(chunks);
+ }catch(e){
+   console.warn('DELETE ALL PHOTOS',e);
+   throw e;
+ }
+}
+
+async function masterDeleteAllSurveyData(){
+ if(!ensureMaster('xóa toàn bộ dữ liệu khảo sát'))return;
+ const count=data.length;
+ const typed=prompt(`CẢNH BÁO: sẽ xóa TOÀN BỘ ${count} bản ghi khảo sát và toàn bộ ảnh hiện trạng trên Cloud.\n\nDanh mục tuyến vẫn được giữ nguyên.\n\nNhập chữ XOA để xác nhận:`);
+ if(String(typed||'').trim().toUpperCase()!=='XOA')return;
+
+ try{
+   if(cloudDb&&cloudUser&&cloudWorkspace){
+     const stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
+     await cloudDb.runTransaction(async tx=>{
+       const snap=await tx.get(stateRef);
+       const obj=snap.exists?(snap.data()||{}):{};
+       tx.set(stateRef,{
+         ...obj,
+         version:35,
+         data:[],
+         updatedAt:new Date().toISOString(),
+         updatedBy:getUpdateActor()
+       },{merge:false});
+     });
+     await deleteAllCloudPhotos();
+     await pullSharedStateNow(false);
+   }else{
+     data=[];
+     persist();
+   }
+   data=[];
+   try{localStorage.setItem(STORE,JSON.stringify([]))}catch{}
+   render(); refreshRouteSelect();
+   alert('ĐÃ XÓA TOÀN BỘ SỐ LIỆU KHẢO SÁT VÀ ẢNH. Danh mục tuyến vẫn được giữ nguyên.');
+ }catch(e){
+   console.error('MASTER DELETE SURVEY DATA',e);
+   alert('Không xóa được toàn bộ dữ liệu khảo sát: '+(e?.message||e));
+ }
+}
+
+async function masterDeleteAllSupplementalRoutes(){
+ if(!ensureMaster('xóa toàn bộ tuyến bổ sung'))return;
+ const supplemental=routes.filter(r=>!mandatoryRouteIds().has(Number(r.id)));
+ const ids=new Set(supplemental.map(r=>String(r.id)));
+ if(!supplemental.length)return alert('Hiện không có tuyến bổ sung để xóa.');
+
+ const linked=data.filter(x=>ids.has(String(x.idTuyen))).length;
+ const typed=prompt(`CẢNH BÁO: sẽ xóa ${supplemental.length} tuyến bổ sung và ${linked} bản ghi khảo sát liên quan, đồng thời xóa ảnh, phân quyền và khóa của các tuyến này.\n\n42 tuyến gốc vẫn được giữ nguyên.\n\nNhập chữ XOA TUYEN để xác nhận:`);
+ if(String(typed||'').trim().toUpperCase()!=='XOA TUYEN')return;
+
+ try{
+   if(cloudDb&&cloudUser&&cloudWorkspace){
+     const stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
+     const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
+
+     await cloudDb.runTransaction(async tx=>{
+       const stateSnap=await tx.get(stateRef);
+       const metaSnap=await tx.get(metaRef);
+       const state=stateSnap.exists?(stateSnap.data()||{}):{};
+       const meta=metaSnap.exists?(metaSnap.data()||{}):{};
+
+       const newRoutes=(Array.isArray(state.routes)?state.routes:[]).filter(r=>!ids.has(String(r.id)));
+       const newData=(Array.isArray(state.data)?state.data:[]).filter(x=>!ids.has(String(x.idTuyen)));
+       const routeAssignments={...(meta.routeAssignments||{})};
+       const routeLocks={...(meta.routeLocks||{})};
+       const surveyLocks={...(meta.surveyLocks||{})};
+
+       ids.forEach(id=>{
+         delete routeAssignments[id];
+         delete routeLocks[id];
+         delete surveyLocks[id];
+       });
+
+       tx.set(stateRef,{
+         ...state,
+         version:35,
+         routes:newRoutes,
+         data:newData,
+         updatedAt:new Date().toISOString(),
+         updatedBy:getUpdateActor()
+       },{merge:false});
+
+       if(metaSnap.exists){
+         tx.set(metaRef,{
+           ...meta,
+           routeAssignments,
+           routeLocks,
+           surveyLocks,
+           permissionUpdatedAt:new Date().toISOString()
+         },{merge:false});
+       }
+     });
+
+     // Xóa ảnh của riêng các tuyến bổ sung.
+     const batch=cloudDb.batch();
+     ids.forEach(id=>batch.delete(cloudDb.doc(`${cloudPath()}/photos/${id}`)));
+     await batch.commit().catch(()=>{});
+     await pullSharedStateNow(false);
+     await refreshCloudMeta().catch(()=>{});
+   }
+
+   routes=routes.filter(r=>!ids.has(String(r.id)));
+   data=data.filter(x=>!ids.has(String(x.idTuyen)));
+   normalizeRoutes();
+   try{
+     localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));
+     localStorage.setItem(STORE,JSON.stringify(data));
+   }catch{}
+   refreshRouteSelect();renderRouteTable();render();
+   alert('ĐÃ XÓA TOÀN BỘ TUYẾN BỔ SUNG VÀ DỮ LIỆU LIÊN QUAN. 42 tuyến gốc vẫn được giữ nguyên.');
+ }catch(e){
+   console.error('MASTER DELETE SUPPLEMENTAL',e);
+   alert('Không xóa được toàn bộ tuyến bổ sung: '+(e?.message||e));
+ }
+}
+
+async function masterFactoryResetWorkspace(){
+ if(!ensureMaster('đặt lại toàn bộ hệ thống'))return;
+ const typed=prompt('CẢNH BÁO RẤT CAO:\n\nThao tác này sẽ:\n- xóa toàn bộ dữ liệu khảo sát;\n- xóa toàn bộ ảnh;\n- xóa mọi tuyến bổ sung;\n- xóa toàn bộ cấp tuyến và trạng thái khóa;\n- đưa hệ thống về đúng 42 tuyến gốc.\n\nNhập chính xác DAT LAI TOAN BO để xác nhận:');
+ if(String(typed||'').trim().toUpperCase()!=='DAT LAI TOAN BO')return;
+
+ try{
+   const base=cloneBaseRoutes();
+
+   if(cloudDb&&cloudUser&&cloudWorkspace){
+     const stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
+     const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
+
+     await cloudDb.runTransaction(async tx=>{
+       const stateSnap=await tx.get(stateRef);
+       const metaSnap=await tx.get(metaRef);
+       const state=stateSnap.exists?(stateSnap.data()||{}):{};
+       const meta=metaSnap.exists?(metaSnap.data()||{}):{};
+
+       tx.set(stateRef,{
+         ...state,
+         version:35,
+         routes:base,
+         data:[],
+         updatedAt:new Date().toISOString(),
+         updatedBy:getUpdateActor()
+       },{merge:false});
+
+       if(metaSnap.exists){
+         tx.set(metaRef,{
+           ...meta,
+           routeAssignments:{},
+           routeLocks:{},
+           surveyLocks:{},
+           permissionUpdatedAt:new Date().toISOString()
+         },{merge:false});
+       }
+     });
+
+     await deleteAllCloudPhotos();
+     await pullSharedStateNow(false);
+     await refreshCloudMeta().catch(()=>{});
+   }
+
+   routes=cloneBaseRoutes();
+   data=[];
+   normalizeRoutes();
+   try{
+     localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));
+     localStorage.setItem(STORE,JSON.stringify([]));
+   }catch{}
+   resetForm();
+   refreshRouteSelect();
+   renderRouteTable();
+   render();
+   alert('ĐÃ ĐẶT LẠI TOÀN BỘ HỆ THỐNG. Hiện chỉ còn 42 tuyến gốc, không còn dữ liệu khảo sát/ảnh/tuyến bổ sung.');
+ }catch(e){
+   console.error('FACTORY RESET WORKSPACE',e);
+   alert('Không đặt lại được toàn bộ hệ thống: '+(e?.message||e));
+ }
+}
+
+// Giữ tên hàm cũ: máy chính bấm Xóa toàn bộ sẽ xóa toàn bộ dữ liệu khảo sát + ảnh.
+function clearAll(){ return masterDeleteAllSurveyData(); }
 function showImage(id){const x=data.find(r=>String(r.idTuyen)===String(id));if(!x?.hinhAnh)return;$('modalImage').src=x.hinhAnh;new bootstrap.Modal($('imgModal')).show()}
 function compressImage(file,maxW,quality){
  return new Promise((resolve,reject)=>{
@@ -2167,7 +2386,7 @@ async function loadCloudStateAndWatch(){
      const safeRoutes=mergeRoutesOntoBase(Array.isArray(rawState.routes)?rawState.routes:[]);
      await stateRef.set({
        routes:safeRoutes,
-       version:33,
+       version:35,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
      },{merge:true});
@@ -2329,7 +2548,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:33,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:35,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -2421,6 +2640,50 @@ function scheduleCloudPush(){
  clearTimeout(cloudPushTimer);
  cloudPushTimer=setTimeout(()=>cloudPushState(false,null,'settings'),700);
 }
+async function masterUpsertSurveyRecordToCloud(routeId){
+ if(!isMasterDevice())return false;
+ if(!cloudDb||!cloudUser||!cloudWorkspace)return false;
+ const rid=Number(routeId);
+ if(!Number.isFinite(rid))return false;
+ const ref=cloudDb.doc(`${cloudPath()}/state/main`);
+ try{
+   const localRec=data.find(x=>Number(x.idTuyen)===rid);
+   if(!localRec)throw new Error('Không tìm thấy bản ghi khảo sát cần cập nhật.');
+   const localRoute=routes.find(r=>Number(r.id)===rid);
+
+   await cloudDb.runTransaction(async tx=>{
+     const snap=await tx.get(ref);
+     const remote=snap.exists?(snap.data()||{}):{routes:[],data:[],settings:{}};
+
+     const remoteRoutes=mergeRoutesOntoBase(Array.isArray(remote.routes)?remote.routes:[]);
+     if(localRoute){
+       const ri=remoteRoutes.findIndex(r=>Number(r.id)===rid);
+       const mergedRoute={...(ri>=0?remoteRoutes[ri]:{}),...localRoute,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()};
+       if(ri>=0)remoteRoutes[ri]=mergedRoute; else remoteRoutes.push(mergedRoute);
+     }
+
+     const remoteData=Array.isArray(remote.data)?remote.data.slice():[];
+     const clean={...localRec,localPending:false,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()};
+     delete clean.hinhAnh;
+     const di=remoteData.findIndex(x=>Number(x.idTuyen)===rid);
+     if(di>=0)remoteData[di]=clean; else remoteData.push(clean);
+
+     tx.set(ref,{...remote,version:35,routes:remoteRoutes,data:remoteData,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()},{merge:false});
+   });
+
+   const fresh=await ref.get();
+   if(fresh.exists)applyCloudState(fresh.data()||{});
+   cloudSetStatus(`Máy chủ đã cập nhật trực tiếp tuyến ${rid} lên Cloud.`,'success');
+   setSharedDataStatus(`MÁY CHỦ ĐÃ CẬP NHẬT tuyến ${rid}. Dữ liệu mới đã ghi đè trên Cloud.`,'success');
+   return true;
+ }catch(e){
+   console.error('MASTER UPSERT SURVEY',e);
+   cloudSetStatus('Máy chủ cập nhật Cloud lỗi: '+e.message,'danger');
+   setSharedDataStatus('Máy chủ cập nhật Cloud lỗi: '+e.message,'danger');
+   return false;
+ }
+}
+
 async function cloudPushState(force=false,routeId=null,mode='survey'){
  if(!cloudDb||!cloudUser||!cloudWorkspace||(!force&&cloudApplying)||!isAuthorizedDevice())return false;
  const ref=cloudDb.doc(`${cloudPath()}/state/main`);
@@ -2464,7 +2727,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
 
        tx.set(ref,{
          ...remote,
-         version:33,
+         version:35,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor(),
          routes:remoteRoutes,
@@ -2486,7 +2749,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
          const safeRoutes=mergeRoutesOntoBase(Array.isArray(remote.routes)?remote.routes:routes);
          tx.set(ref,{
            ...remote,
-           version:33,
+           version:35,
            updatedAt:new Date().toISOString(),
            updatedBy:getUpdateActor(),
            routes:safeRoutes,
