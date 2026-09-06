@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V15 Hiển thị đủ 42 tuyến</title>
+<title>QL Khảo sát Mương Cửa Lò - V16 Render 42 tuyến trước phân quyền</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -110,7 +110,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
   </div></div>
  </div>
 </main>
-<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến gốc được tạo và hiển thị ngay khi mở phần mềm, không phụ thuộc trạng thái Cloud. Máy chính sửa không giới hạn; máy phụ chỉ sửa tuyến được cấp 1 lần rồi khóa.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+<div class="modal fade" id="routeModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title">Quản lý danh mục tuyến đường</h5><div class="small text-muted">42 tuyến được dựng trước độc lập với Cloud; trạng thái Sửa/Khóa/Cấp quyền được gắn sau. Máy chính sửa không giới hạn; máy phụ chỉ sửa tuyến được cấp 1 lần rồi khóa.</div></div><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
 <div class="card border p-3 mb-3 shadow-none"><input type="hidden" id="routeEditId"><div class="row g-2"><div class="col-md-2"><label class="form-label">Mã/STT tuyến</label><input id="routeIdInput" type="number" min="1" class="form-control" placeholder="Tự tăng nếu bỏ trống"></div><div class="col-md-4"><label class="form-label">Tên tuyến đường</label><input id="routeNameInput" class="form-control" placeholder="VD: NGUYỄN HUỆ"></div><div class="col-md-3"><label class="form-label">Điểm đầu</label><input id="routeStartInput" class="form-control"></div><div class="col-md-3"><label class="form-label">Điểm cuối</label><input id="routeEndInput" class="form-control"></div><div class="col-md-2"><label class="form-label">Chiều dài (m)</label><input id="routeLengthInput" type="number" min="0" step="0.01" class="form-control"></div><div class="col-md-4"><label class="form-label">Ghi chú tuyến</label><input id="routeNoteInput" class="form-control" placeholder="Khu vực, loại tuyến..."></div><div class="col-md-4"><label class="form-label">Quy cách mương mặc định</label><input id="routeSpecInput" class="form-control" list="specOptions" placeholder="VD: Mương BTCT đúc sẵn, có tấm đan"></div><div class="col-md-8 d-flex align-items-end gap-2"><button class="btn btn-main" type="button" onclick="saveRoute()">Lưu / cập nhật tuyến</button><button class="btn btn-outline-secondary" type="button" onclick="resetRouteForm()">Nhập tuyến mới</button><button class="btn btn-outline-success" type="button" onclick="exportRoutesExcel()">Xuất danh mục</button><label class="btn btn-outline-primary mb-0">Nhập Excel<input id="routeImportFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="importRoutesExcel(event)"></label></div></div></div>
 <div class="row g-2 mb-2"><div class="col-md-6"><input id="routeSearch" class="form-control" placeholder="Tìm tên tuyến, điểm đầu, điểm cuối..." oninput="renderRouteTable()"></div><div class="col-md-6 text-md-end small text-muted align-self-center">Tổng số tuyến: <b id="routeCount">0</b></div></div>
 <div class="table-responsive" style="max-height:430px"><table class="table table-bordered table-hover align-middle small"><thead class="table-light"><tr><th>STT</th><th>Mã</th><th>Tên tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Chiều dài (m)</th><th>Ghi chú</th><th>Quy cách mặc định</th><th>Thao tác</th></tr></thead><tbody id="routeTableBody"></tbody></table></div>
@@ -615,50 +615,146 @@ function deleteRoute(id){
  if(!confirm(msg))return;routes=routes.filter(r=>r.id!==id);persistRoutes();refreshRouteSelect();renderRouteTable();render();
 }
 function renderRouteTable(){
- if(!Array.isArray(routes)||countMandatoryRoutes(routes)<defaultRoutes.length){
-   routes=mergeRoutesOntoBase(Array.isArray(routes)?routes:[]);
-   ensure42RoutesLocal(routes);
- }
- const q=($('routeSearch')?.value||'').toLowerCase().trim();
- const rows=routes.filter(r=>!q||[r.name,r.dau,r.cuoi,r.note].join(' ').toLowerCase().includes(q)).sort((a,b)=>a.id-b.id);
- if($('routeCount'))$('routeCount').textContent=routes.length;
- const tb=$('routeTableBody');if(!tb)return;
- const master=isMasterDevice(),authorized=isAuthorizedDevice();
- const devices=(cloudMeta?.authorizedDevices||[]);
- tb.innerHTML=rows.length?rows.map((r,i)=>{
-   try{
-   const lock=routeLockInfo(r.id),assignment=routeAssignmentInfo(r.id);
-   let actions='',assignText='';
-   if(master){
-     const options=devices.map(d=>`<option value="${escapeHtml(d.id)}" ${assignment?.active!==false&&String(assignment?.deviceId)===String(d.id)?'selected':''}>${escapeHtml(d.name||String(d.id).slice(0,8))}</option>`).join('');
-     actions=`<button class="btn btn-outline-primary btn-sm" onclick="editRoute(${r.id})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRoute(${r.id})">Xóa</button>`;
-     if(devices.length){
-       actions+=` <select id="routeAssign_${r.id}" class="form-select form-select-sm d-inline-block" style="width:150px"><option value="">-- Cấp cho máy --</option>${options}</select>
-       <button class="btn btn-success btn-sm" onclick="assignRouteToDevice(${r.id},$('routeAssign_${r.id}').value)">Cấp tuyến</button>`;
-     }
-     if(assignment?.active!==false&&assignment?.deviceId){
-       actions+=` <button class="btn btn-outline-secondary btn-sm" onclick="revokeRouteAssignment(${r.id})">Thu hồi</button>`;
-       assignText=`<div class="small text-primary mt-1">Đã cấp: ${escapeHtml(assignment.deviceName||assignment.deviceId)}</div>`;
-     }else assignText='<div class="small text-muted mt-1">Chưa cấp cho máy phụ</div>';
-     if(lock?.locked)actions+=` <button class="btn btn-warning btn-sm" onclick="unlockRouteForDevices(${r.id})">Mở lại 1 lần</button>`;
-   }else if(authorized){
-     if(!isRouteAssignedToCurrentDevice(r.id)){
-       actions='<span class="badge text-bg-light border">Không được cấp tuyến</span>';
-     }else{
-       actions=lock?.locked?`<span class="badge text-bg-secondary">Đã khóa sau 1 lần sửa</span>`:`<button class="btn btn-outline-primary btn-sm" onclick="editRoute(${r.id})">Sửa 1 lần</button>`;
-       assignText='<div class="small text-primary mt-1">Tuyến đã được cấp cho máy này</div>';
-     }
-   }else actions='<span class="badge text-bg-warning">Chưa được cấp quyền</span>';
-   const lockText=lock?.locked?`<div class="small text-muted mt-1">Khóa bởi ${escapeHtml(lock.byDeviceName||'thiết bị')}</div>`:'';
-   return `<tr><td>${i+1}</td><td>${r.id}</td><td class="fw-bold">${escapeHtml(r.name)}</td><td>${escapeHtml(r.dau)}</td><td>${escapeHtml(r.cuoi)}</td><td>${Number(r.tong||0).toLocaleString('vi-VN')}</td><td>${escapeHtml(r.note||'')}</td><td>${escapeHtml(r.defaultSpec||'')}</td><td>${actions}${assignText}${lockText}</td></tr>`;
-   }catch(err){
-     console.error('ROUTE ROW RENDER ERROR',r,err);
-     return `<tr><td>${i+1}</td><td>${escapeHtml(r?.id||'')}</td><td class="fw-bold">${escapeHtml(r?.name||'Tuyến')}</td><td>${escapeHtml(r?.dau||'')}</td><td>${escapeHtml(r?.cuoi||'')}</td><td>${Number(r?.tong||0).toLocaleString('vi-VN')}</td><td>${escapeHtml(r?.note||'')}</td><td>${escapeHtml(r?.defaultSpec||'')}</td><td><span class="badge text-bg-secondary">Chưa kết nối quyền</span></td></tr>`;
+ // V16 - GIAI ĐOẠN 1:
+ // Dựng bảng tuyến hoàn toàn độc lập với Cloud/phân quyền.
+ try{
+   if(!Array.isArray(routes)||countMandatoryRoutes(routes)<defaultRoutes.length){
+     routes=mergeRoutesOntoBase(Array.isArray(routes)?routes:[]);
+     ensure42RoutesLocal(routes);
    }
- }).join(''):'<tr><td colspan="9" class="text-center text-muted py-3">Không có tuyến phù hợp.</td></tr>';
- const newBtn=document.querySelector('button[onclick="resetRouteForm()"]');if(newBtn)newBtn.classList.toggle('d-none',cloudUser&&!master);
- const imp=document.getElementById('routeImportFile')?.closest('label');if(imp)imp.classList.toggle('d-none',cloudUser&&!master);
+
+   const tb=$('routeTableBody');
+   if(!tb)return;
+
+   const q=String($('routeSearch')?.value||'').toLowerCase().trim();
+   const rows=routes
+     .filter(r=>!q||[r.name,r.dau,r.cuoi,r.note].join(' ').toLowerCase().includes(q))
+     .sort((a,b)=>Number(a.id)-Number(b.id));
+
+   if($('routeCount'))$('routeCount').textContent=routes.length;
+
+   // Luôn render dữ liệu tuyến trước. Không gọi hàm phân quyền ở đây.
+   if(!rows.length){
+     tb.innerHTML='<tr><td colspan="9" class="text-center text-muted py-3">Không có tuyến phù hợp.</td></tr>';
+     return;
+   }
+
+   tb.innerHTML=rows.map((r,i)=>`
+     <tr data-route-row="${Number(r.id)}">
+       <td>${i+1}</td>
+       <td>${Number(r.id)}</td>
+       <td class="fw-bold">${escapeHtml(r.name||'')}</td>
+       <td>${escapeHtml(r.dau||'')}</td>
+       <td>${escapeHtml(r.cuoi||'')}</td>
+       <td>${Number(r.tong||0).toLocaleString('vi-VN')}</td>
+       <td>${escapeHtml(r.note||'')}</td>
+       <td>${escapeHtml(r.defaultSpec||'')}</td>
+       <td class="route-actions text-nowrap" data-route-id="${Number(r.id)}">
+         <span class="badge text-bg-light border">Đang kiểm tra quyền...</span>
+       </td>
+     </tr>`).join('');
+
+   // GIAI ĐOẠN 2:
+   // Sau khi bảng đã hiện đủ dòng mới gắn trạng thái/nút phân quyền.
+   setTimeout(updateRouteActionCells,0);
+
+   const newBtn=document.querySelector('button[onclick="resetRouteForm()"]');
+   if(newBtn){
+     try{newBtn.classList.toggle('d-none',!!cloudUser&&!isMasterDevice())}
+     catch{newBtn.classList.remove('d-none')}
+   }
+   const imp=document.getElementById('routeImportFile')?.closest('label');
+   if(imp){
+     try{imp.classList.toggle('d-none',!!cloudUser&&!isMasterDevice())}
+     catch{imp.classList.remove('d-none')}
+   }
+ }catch(err){
+   console.error('RENDER ROUTE TABLE FATAL',err);
+   // Fallback cuối cùng: dựng trực tiếp 42 tuyến gốc.
+   const tb=$('routeTableBody');
+   if(tb){
+     const fallback=cloneBaseRoutes();
+     tb.innerHTML=fallback.map((r,i)=>`
+       <tr>
+         <td>${i+1}</td><td>${r.id}</td><td class="fw-bold">${escapeHtml(r.name)}</td>
+         <td>${escapeHtml(r.dau||'')}</td><td>${escapeHtml(r.cuoi||'')}</td>
+         <td>${Number(r.tong||0).toLocaleString('vi-VN')}</td>
+         <td></td><td></td>
+         <td><span class="badge text-bg-secondary">Chưa tải quyền</span></td>
+       </tr>`).join('');
+   }
+   if($('routeCount'))$('routeCount').textContent=42;
+ }
 }
+
+function updateRouteActionCells(){
+ const cells=document.querySelectorAll('#routeTableBody .route-actions[data-route-id]');
+ if(!cells.length)return;
+
+ cells.forEach(cell=>{
+   const id=Number(cell.dataset.routeId);
+   try{
+     const master=!!isMasterDevice();
+     const authorized=!!isAuthorizedDevice();
+     const lock=routeLockInfo(id);
+     const assignment=routeAssignmentInfo(id);
+     let html='';
+
+     if(master){
+       const devices=Array.isArray(cloudMeta?.authorizedDevices)?cloudMeta.authorizedDevices:[];
+       const options=devices.map(d=>`
+         <option value="${escapeHtml(d.id)}"
+           ${assignment?.active!==false&&String(assignment?.deviceId)===String(d.id)?'selected':''}>
+           ${escapeHtml(d.name||String(d.id).slice(0,8))}
+         </option>`).join('');
+
+       html=`<button class="btn btn-outline-primary btn-sm" onclick="editRoute(${id})">Sửa</button>`;
+
+       // 42 tuyến gốc không cho xóa; tuyến bổ sung ngoài 42 mới có nút Xóa.
+       if(!mandatoryRouteIds().has(id)){
+         html+=` <button class="btn btn-outline-danger btn-sm" onclick="deleteRoute(${id})">Xóa</button>`;
+       }
+
+       if(devices.length){
+         html+=` <select id="routeAssign_${id}" class="form-select form-select-sm d-inline-block" style="width:150px">
+           <option value="">-- Cấp cho máy --</option>${options}</select>
+           <button class="btn btn-success btn-sm" onclick="assignRouteToDevice(${id},$('routeAssign_${id}').value)">Cấp tuyến</button>`;
+       }
+
+       if(assignment?.active!==false&&assignment?.deviceId){
+         html+=` <button class="btn btn-outline-secondary btn-sm" onclick="revokeRouteAssignment(${id})">Thu hồi</button>
+           <div class="small text-primary mt-1">Đã cấp: ${escapeHtml(assignment.deviceName||assignment.deviceId)}</div>`;
+       }else{
+         html+=` <div class="small text-muted mt-1">Chưa cấp cho máy phụ</div>`;
+       }
+
+       if(lock?.locked){
+         html+=` <button class="btn btn-warning btn-sm mt-1" onclick="unlockRouteForDevices(${id})">Mở lại 1 lần</button>
+           <div class="small text-muted mt-1">Đã khóa bởi ${escapeHtml(lock.byDeviceName||'thiết bị')}</div>`;
+       }
+
+     }else if(authorized){
+       if(!isRouteAssignedToCurrentDevice(id)){
+         html='<span class="badge text-bg-light border">Không được cấp tuyến</span>';
+       }else if(lock?.locked){
+         html='<span class="badge text-bg-secondary">Đã khóa sau 1 lần sửa</span>';
+       }else{
+         html=`<button class="btn btn-outline-primary btn-sm" onclick="editRoute(${id})">Sửa 1 lần</button>
+           <div class="small text-primary mt-1">Đã được cấp tuyến</div>`;
+       }
+     }else{
+       // Chưa kết nối Cloud/chưa được cấp quyền: vẫn hiển thị dòng tuyến, chỉ khóa thao tác.
+       html='<span class="badge text-bg-warning">Chưa được cấp quyền</span>';
+     }
+
+     cell.innerHTML=html||'<span class="badge text-bg-light border">Không có thao tác</span>';
+   }catch(err){
+     console.error('ROUTE ACTION ERROR',id,err);
+     cell.innerHTML='<span class="badge text-bg-secondary">Chưa tải quyền</span>';
+   }
+ });
+}
+
 function importRoutesExcel(e){if(!ensureMaster('nhập/cập nhật hàng loạt danh mục tuyến')){e.target.value='';return;}const f=e.target.files[0];if(!f)return;if(typeof XLSX==='undefined'){alert('Không tải được thư viện Excel.');e.target.value='';return;}const rd=new FileReader();rd.onload=()=>{try{const wb=XLSX.read(rd.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const arr=XLSX.utils.sheet_to_json(ws,{defval:''});if(!arr.length)throw new Error('File không có dữ liệu');const pick=(o,names)=>{for(const n of names){if(Object.prototype.hasOwnProperty.call(o,n))return o[n];const k=Object.keys(o).find(k=>String(k).trim().toLowerCase()===n.toLowerCase());if(k)return o[k]}return ''};const imported=arr.map((o,i)=>({id:Number(pick(o,['Mã tuyến','Ma tuyen','ID','STT']))||nextRouteId()+i,name:String(pick(o,['Tên tuyến','Tên tuyến đường','Ten tuyen','Tên đường'])||'').trim().toUpperCase(),dau:String(pick(o,['Điểm đầu','Diem dau'])||'').trim(),cuoi:String(pick(o,['Điểm cuối','Diem cuoi'])||'').trim(),tong:Number(pick(o,['Chiều dài (m)','Chiều dài','Chieu dai','Tổng chiều dài']))||0,note:String(pick(o,['Ghi chú','Ghi chu'])||'').trim(),defaultSpec:String(pick(o,['Quy cách mương mặc định','Quy cách','Quy cach'])||'').trim()})).filter(r=>r.name);if(!imported.length)throw new Error('Không nhận diện được cột Tên tuyến');let added=0,updated=0;for(const r of imported){const idx=routes.findIndex(x=>x.id===r.id||x.name.toUpperCase()===r.name.toUpperCase());if(idx>=0){const old=routes[idx];routes[idx]={...old,...r,id:old.id};data.forEach(x=>{if(String(x.idTuyen)===String(old.id)){x.ten=r.name;x.diemDau=r.dau;x.diemCuoi=r.cuoi;}});updated++;}else{r.id=routes.some(x=>x.id===r.id)?nextRouteId():r.id;routes.push(r);added++;}}normalizeRoutes();persistRoutes();persist();refreshRouteSelect();renderRouteTable();render();alert(`Đã nhập danh mục: thêm ${added} tuyến, cập nhật ${updated} tuyến.`);}catch(err){alert('Không thể nhập danh mục tuyến: '+err.message);}e.target.value='';};rd.readAsArrayBuffer(f);}
 function exportRoutesExcel(){if(typeof XLSX==='undefined')return alert('Không tải được thư viện Excel.');const rows=routes.map((r,i)=>({'STT':i+1,'Mã tuyến':r.id,'Tên tuyến':r.name,'Điểm đầu':r.dau,'Điểm cuối':r.cuoi,'Chiều dài (m)':r.tong,'Ghi chú':r.note||'','Quy cách mương mặc định':r.defaultSpec||''}));const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:6},{wch:10},{wch:28},{wch:34},{wch:34},{wch:16},{wch:30},{wch:34}];XLSX.utils.book_append_sheet(wb,ws,'Danh mục tuyến');XLSX.writeFile(wb,'Danh_muc_tuyen_duong_'+today()+'.xlsx');}
 
