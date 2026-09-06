@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V38 Sửa/Xóa trực tiếp dữ liệu khảo sát</title>
+<title>QL Khảo sát Mương Cửa Lò - V39 Giữ form khi cập nhật</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -54,7 +54,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 <header class="app-header">
  <div class="container-fluid px-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-   <div><h2 class="fw-bold mb-1">HỆ THỐNG QUẢN LÝ KHẢO SÁT & DỰ TOÁN MƯƠNG THOÁT NƯỚC <span class="badge text-bg-primary">V38</span></h2><div class="small opacity-75">Số hóa hiện trường • Khối lượng • Dự toán • Báo cáo</div></div>
+   <div><h2 class="fw-bold mb-1">HỆ THỐNG QUẢN LÝ KHẢO SÁT & DỰ TOÁN MƯƠNG THOÁT NƯỚC <span class="badge text-bg-primary">V39</span></h2><div class="small opacity-75">Số hóa hiện trường • Khối lượng • Dự toán • Báo cáo</div></div>
    <div class="account-panel no-print">
     <div class="account-user"><small>Đang sử dụng</small><strong id="currentUserLabel">—</strong></div>
     <button id="installPwaBtn" class="btn btn-sm btn-outline-light d-none" type="button">Cài ứng dụng</button><button class="btn btn-sm btn-outline-light" type="button" onclick="logoutAccount()">Đăng xuất</button>
@@ -92,6 +92,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
         <div>
           <div id="surveyRoutePermissionStatus" class="small text-muted">Đang tải danh sách tuyến được cấp...</div>
           <div class="small text-info mt-1">Sau lần cập nhật thành công đầu tiên, tuyến vẫn mở 60 phút; đủ 60 phút mới khóa và chỉ máy chính được mở lại.</div>
+          <div class="small text-success mt-1 fw-semibold">V39: Khi đang nhập/sửa số liệu, hệ thống giữ nguyên các ô; đồng bộ nền không được ghi đè trước khi Lưu.</div>
         </div>
         <div class="d-flex gap-1 flex-wrap">
           <button class="btn btn-success btn-sm" type="button" onclick="toggleSurveyNewRouteForm()">+ Thêm tuyến mới</button>
@@ -331,7 +332,9 @@ function cloneBaseRoutes(){
 let routes=cloneBaseRoutes();
 const STORE='CUALO_DRAINAGE_SURVEY_V4', SETTINGS='CUL0_DRAINAGE_SETTINGS_V2';
 const LEGACY_STORES=['CUL0_DRAINAGE_SURVEY_V2','SURVEY_DATA_STORE','CUALO_DRAINAGE_SURVEY_V3'];
-let data=[]; let currentImage=''; let savedImageBeforeEdit=''; let pendingImagePromise=null; let photoChanged=false; let lastSavedRouteId=null;
+let data=[]; let currentImage=''; let savedImageBeforeEdit='';
+let surveyFormDirty=false;
+let surveyFormRouteId=''; let pendingImagePromise=null; let photoChanged=false; let lastSavedRouteId=null;
 const MASTER_EMAIL='binhhu19802014@gmail.com';
 const MASTER_DEVICE_ID='e5bd6766-c82f-4440-a0d0-fd2887dfce08';
 const DEVICE_ID_STORE='CUALO_DEVICE_ID_V1', DEVICE_NAME_STORE='CUALO_DEVICE_NAME_V1';
@@ -857,12 +860,13 @@ function initApp(){
  renderRouteTable();
 }
 function bind(){
- $('selectRoute').addEventListener('change',loadRoute);
+ $('selectRoute').addEventListener('change',()=>{clearSurveyFormDirty();loadRoute(true);});
  $('cfgMudPrice').addEventListener('change',recalcAll); $('cfgPitPrice').addEventListener('change',recalcAll);
  $('searchText').addEventListener('input',render); $('filterLevel').addEventListener('change',render);
  $('photo').addEventListener('change',e=>{
  const f=e.target.files[0];
  if(!f)return;
+ markSurveyFormDirty();
  photoChanged=true;
  if($('photoStatus'))$('photoStatus').textContent='Đang xử lý ảnh... vui lòng chờ.';
  pendingImagePromise=compressImage(f,640,.48).then(imgData=>{
@@ -878,11 +882,38 @@ function bind(){
    throw err;
  });
 });
+ const surveyDirtyIds=['surveyStart','surveyEnd','surveyDate','rightLength','rightPits','leftLength','leftPits','spec','width','height','mudDepth','level','notes'];
+ surveyDirtyIds.forEach(id=>{
+   const el=$(id);
+   if(!el)return;
+   el.addEventListener('input',markSurveyFormDirty);
+   el.addEventListener('change',markSurveyFormDirty);
+ });
  $('restoreFile').addEventListener('change',restoreJSON);
 }
-function loadRoute(){
- const r=routes.find(x=>String(x.id)==String($('selectRoute').value));
+function markSurveyFormDirty(){
+ if(!$('selectRoute')?.value)return;
+ surveyFormDirty=true;
+ surveyFormRouteId=String($('selectRoute').value||'');
+ if($('saveStatus'))setSaveStatus('Đang chỉnh sửa số liệu • Đồng bộ nền sẽ không ghi đè các ô đang nhập.','info');
+}
+function clearSurveyFormDirty(){
+ surveyFormDirty=false;
+ surveyFormRouteId='';
+}
+function canAutoReloadSurveyForm(routeId){
+ if(!surveyFormDirty)return true;
+ return String(routeId||'')!==String(surveyFormRouteId||'');
+}
+function loadRoute(force=false){
+ const selectedId=String($('selectRoute')?.value||'');
+ const r=routes.find(x=>String(x.id)==selectedId);
  if(!r){$('routeStart').textContent=$('routeEnd').textContent=$('routeLength').textContent='-'; if(!$('editId').value){$('spec').value='';} return;}
+ // V39: không cho đồng bộ nền nạp lại dữ liệu cũ khi người dùng đang sửa form.
+ if(!force && surveyFormDirty && String(surveyFormRouteId)===String(r.id)){
+   $('routeStart').textContent=r.dau;$('routeEnd').textContent=r.cuoi;$('routeLength').textContent=r.tong;
+   return;
+ }
  $('routeStart').textContent=r.dau;$('routeEnd').textContent=r.cuoi;$('routeLength').textContent=r.tong;
  const existing=data.find(x=>String(x.idTuyen)===String(r.id));
  if(existing){
@@ -894,6 +925,7 @@ function loadRoute(){
  }else if(!$('editId').value){
    $('surveyStart').value=r.dau||'';$('surveyEnd').value=r.cuoi||'';$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('spec').value=r.defaultSpec||'';$('surveyDate').value=today();$('width').value=.5;$('height').value=0;$('mudDepth').value='';$('rightPits').value=0;$('leftPits').value=0;$('level').value='Bình thường';$('notes').value='';currentImage='';savedImageBeforeEdit='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');
  }
+ clearSurveyFormDirty();
 }
 function applyRouteDefaultSpec(){const r=routes.find(x=>String(x.id)===String($('selectRoute').value));if(!r)return alert('Vui lòng chọn tuyến đường trước.');$('spec').value=r.defaultSpec||'';if(!r.defaultSpec)alert('Tuyến này chưa có quy cách mặc định. Bạn có thể nhập trực tiếp hoặc vào Quản lý tuyến để thiết lập.');}
 
@@ -935,7 +967,7 @@ async function saveNewRouteFromSurvey(){
      const maxId=remoteRoutes.reduce((m,r)=>Math.max(m,Number(r.id)||0),0),newId=maxId+1,now=new Date().toISOString();
      createdRoute={id:newId,name,dau,cuoi,tong,note,defaultSpec,isSupplemental:true,sharedSurveyAccess:true,createdAt:now,createdBy:getUpdateActor(),createdByDeviceId:deviceId,updatedAt:now,updatedBy:getUpdateActor()};
      remoteRoutes.push(createdRoute);remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
-     tx.set(stateRef,{...obj,version:38,routes:remoteRoutes,updatedAt:now,updatedBy:getUpdateActor()},{merge:false});
+     tx.set(stateRef,{...obj,version:39,routes:remoteRoutes,updatedAt:now,updatedBy:getUpdateActor()},{merge:false});
    });
    if(!createdRoute)throw new Error('Không tạo được tuyến mới.');
    const fresh=await stateRef.get();if(fresh.exists)applyCloudState(fresh.data()||{});
@@ -1041,7 +1073,11 @@ function refreshRouteSelect(selected){
  else sel.value='';
 
  updateSurveyRoutePermissionStatus(list);
- loadRoute();
+ if(!surveyFormDirty)loadRoute(true);
+ else{
+   const r=routes.find(x=>String(x.id)===String(sel.value));
+   if(r){$('routeStart').textContent=r.dau;$('routeEnd').textContent=r.cuoi;$('routeLength').textContent=r.tong;}
+ }
 }
 function nextRouteId(){return routes.length?Math.max(...routes.map(r=>Number(r.id)||0))+1:1;}
 async function refreshCloudMeta(){
@@ -1280,7 +1316,7 @@ async function saveNewRoute(){
      remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
      tx.set(ref,{
        ...obj,
-       version:38,
+       version:39,
        routes:remoteRoutes,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
@@ -1410,7 +1446,7 @@ async function deleteRoute(id){
 
        tx.set(stateRef,{
          ...state,
-         version:38,
+         version:39,
          routes:remoteRoutes,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor()
@@ -1712,10 +1748,11 @@ async function saveRecord(e){
 
    savedImageBeforeEdit=currentImage||'';
    photoChanged=false;
+   clearSurveyFormDirty();
    lastSavedRouteId=r.id;
    $('editId').value=String(r.id);
    $('searchText').value=''; $('filterLevel').value='';
-   render(); refreshRouteSelect(r.id); loadRoute();
+   render(); refreshRouteSelect(r.id); loadRoute(true);
    setSaveStatus(`${isUpdate?'ĐÃ CẬP NHẬT':'ĐÃ LƯU'}: ${r.name} • ${formatDateVN(saved.ngay)} • ${saved.khoiLuongBun.toLocaleString('vi-VN')} m³`,'success');
    setTimeout(()=>document.querySelector(`[data-route-id="${r.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}),100);
    return false;
@@ -1747,7 +1784,7 @@ async function recalcAll(){
        return y;
      });
      tx.set(ref,{
-       ...obj,version:38,data:remoteData,
+       ...obj,version:39,data:remoteData,
        settings:{...(obj.settings||{}),mudPrice,pitPrice},
        updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()
      },{merge:false});
@@ -1772,7 +1809,7 @@ function editRecord(id){
  const sl=surveyLockInfo(id);
  if(!masterEdit&&isActiveAuxLock(sl))return alert('Khảo sát tuyến này đã khóa sau 60 phút. Chỉ máy chính mới có thể mở lại.');
  const x=data.find(r=>String(r.idTuyen)===String(id));if(!x)return;
- $('editId').value=id;$('selectRoute').value=id;loadRoute();
+ clearSurveyFormDirty();$('editId').value=id;$('selectRoute').value=id;loadRoute(true);
  $('surveyDate').value=x.ngay||today();$('surveyStart').value=x.diemDau||'';$('surveyEnd').value=x.diemCuoi||'';
  $('rightLength').value=x.chieuDaiPhai??x.chieuDai??0;$('leftLength').value=x.chieuDaiTrai??0;
  $('spec').value=x.quyCach;$('width').value=x.rong;$('height').value=x.cao??0;$('mudDepth').value=x.dayBun;
@@ -1781,6 +1818,7 @@ function editRecord(id){
  currentImage=x.hinhAnh||'';savedImageBeforeEdit=currentImage;pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';
  if(currentImage){$('photoPreview').src=currentImage;$('photoPreviewWrap').classList.remove('d-none');if($('photoStatus'))$('photoStatus').textContent='Đang dùng ảnh đã lưu. Chọn ảnh mới để thay thế.';}
  else{$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Bản ghi này chưa có ảnh.';}
+ clearSurveyFormDirty();
  $('formTitle').textContent=masterEdit?'MÁY CHỦ - Chỉnh sửa khảo sát (không giới hạn)':'Chỉnh sửa khảo sát';$('cancelEdit').classList.remove('d-none');if(masterEdit)setSaveStatus(hasMasterCloudWriteSession()?'MÁY CHỦ: được sửa trực tiếp bản ghi này trên Cloud.':'MÁY CHỦ: cần KẾT NỐI CLOUD bằng tài khoản chính trước khi Lưu cập nhật.','info');window.scrollTo({top:0,behavior:'smooth'});
 }
 function refreshPhotoPreviewUI(){
@@ -1793,6 +1831,7 @@ function refreshPhotoPreviewUI(){
  }
 }
 function discardNewPhotoSelection(){
+ markSurveyFormDirty();
  pendingImagePromise=null;
  if($('photo'))$('photo').value='';
  currentImage=savedImageBeforeEdit||'';
@@ -1803,6 +1842,7 @@ function discardNewPhotoSelection(){
    :'Đã bỏ ảnh vừa chọn. Chưa có ảnh được lưu.';
 }
 function markSavedPhotoForDeletion(){
+ markSurveyFormDirty();
  if(!savedImageBeforeEdit&&!currentImage){
    if($('photoStatus'))$('photoStatus').textContent='Không có ảnh đã lưu để xóa.';
    return;
@@ -1817,7 +1857,7 @@ function markSavedPhotoForDeletion(){
  if($('photoStatus'))$('photoStatus').textContent='Đã đánh dấu xóa ảnh. Bấm LƯU / CẬP NHẬT KHẢO SÁT để xác nhận xóa.';
 }
 function removeCurrentPhoto(){markSavedPhotoForDeletion();}
-function resetForm(){$('surveyForm').reset();$('editId').value='';$('surveyDate').value=today();$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('width').value=.5;$('height').value=0;currentImage='';savedImageBeforeEdit='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');loadRoute();}
+function resetForm(){clearSurveyFormDirty();$('surveyForm').reset();$('editId').value='';$('surveyDate').value=today();$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('width').value=.5;$('height').value=0;currentImage='';savedImageBeforeEdit='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');loadRoute(true);}
 async function deleteRecord(id){
  const rid=Number(id);
  if(!Number.isFinite(rid))return;
@@ -1857,7 +1897,7 @@ async function deleteRecord(id){
      // Chỉ update trường data, KHÔNG ghi lại routes/settings và KHÔNG phụ thuộc config/meta.
      await stateRef.update({
        data:after,
-       version:38,
+       version:39,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor(),
        lastMasterDelete:{
@@ -1950,7 +1990,7 @@ async function masterDeleteAllSurveyData(){
        const obj=snap.exists?(snap.data()||{}):{};
        tx.set(stateRef,{
          ...obj,
-         version:38,
+         version:39,
          data:[],
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor()
@@ -2007,7 +2047,7 @@ async function masterDeleteAllSupplementalRoutes(){
 
        tx.set(stateRef,{
          ...state,
-         version:38,
+         version:39,
          routes:newRoutes,
          data:newData,
          updatedAt:new Date().toISOString(),
@@ -2068,7 +2108,7 @@ async function masterFactoryResetWorkspace(){
 
        tx.set(stateRef,{
          ...state,
-         version:38,
+         version:39,
          routes:base,
          data:[],
          updatedAt:new Date().toISOString(),
@@ -2505,7 +2545,7 @@ async function loadCloudStateAndWatch(){
      const safeRoutes=mergeRoutesOntoBase(Array.isArray(rawState.routes)?rawState.routes:[]);
      await stateRef.set({
        routes:safeRoutes,
-       version:38,
+       version:39,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
      },{merge:true});
@@ -2668,7 +2708,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:38,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:39,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -2783,7 +2823,7 @@ async function masterUpsertSurveyRecordToCloud(routeId){
    // Chỉ ghi trường data: máy chủ sửa khảo sát không đụng routeAssignments/locks/routes.
    await ref.update({
      data:remoteData,
-     version:38,
+     version:39,
      updatedAt:new Date().toISOString(),
      updatedBy:getUpdateActor(),
      lastMasterUpdate:{routeId:rid,at:new Date().toISOString(),by:getUpdateActor()}
@@ -2851,7 +2891,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
 
        tx.set(ref,{
          ...remote,
-         version:38,
+         version:39,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor(),
          routes:remoteRoutes,
@@ -2873,7 +2913,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
          const safeRoutes=mergeRoutesOntoBase(Array.isArray(remote.routes)?remote.routes:routes);
          tx.set(ref,{
            ...remote,
-           version:38,
+           version:39,
            updatedAt:new Date().toISOString(),
            updatedBy:getUpdateActor(),
            routes:safeRoutes,
