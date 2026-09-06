@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V19 Cấp quyền không mất dữ liệu</title>
+<title>QL Khảo sát Mương Cửa Lò - V20 Đồng bộ quyền máy phụ</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -132,6 +132,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
    <div class="col-md-5"><label class="form-label">Tên thiết bị</label><input id="deviceNameInput" class="form-control" placeholder="VD: Máy khảo sát số 01" onchange="saveDeviceName()"></div>
    <div class="col-md-5"><label class="form-label">Mã thiết bị</label><input id="deviceIdInput" class="form-control font-monospace" readonly></div>
    <div class="col-md-2 d-flex align-items-end"><button id="requestAccessBtn" class="btn btn-warning w-100 d-none" type="button" onclick="requestDeviceAccess()">Yêu cầu cấp quyền</button></div>
+   <div class="col-md-2 d-flex align-items-end"><button id="syncPermissionBtn" class="btn btn-outline-primary w-100" type="button" onclick="syncMyPermissionNow()">Đồng bộ quyền ngay</button></div>
  </div>
  <div id="deviceAccessStatus" class="alert alert-secondary py-2 small mt-2 mb-0">Trạng thái thiết bị: chưa kết nối.</div>
 
@@ -254,7 +255,45 @@ const MASTER_EMAIL='binhhu19802014@gmail.com';
 const MASTER_DEVICE_ID='e5bd6766-c82f-4440-a0d0-fd2887dfce08';
 const DEVICE_ID_STORE='CUALO_DEVICE_ID_V1', DEVICE_NAME_STORE='CUALO_DEVICE_NAME_V1';
 const MASTER_DEVICE_MARKER_STORE='CUALO_MASTER_DEVICE_MARKER_V18';
+const DEVICE_PERMISSION_CACHE_STORE='CUALO_DEVICE_PERMISSION_CACHE_V20';
 let deviceId='',deviceName='',currentUser=null;
+let permissionRefreshTimer=null;
+
+function permissionCacheKey(){return `${String(cloudWorkspace||'CUALO-2026')}::${String(deviceId||'')}`}
+function readPermissionCache(){
+ try{
+   const all=JSON.parse(localStorage.getItem(DEVICE_PERMISSION_CACHE_STORE)||'{}');
+   return all[permissionCacheKey()]||null;
+ }catch{return null}
+}
+function writePermissionCache(value){
+ try{
+   const all=JSON.parse(localStorage.getItem(DEVICE_PERMISSION_CACHE_STORE)||'{}');
+   if(value)all[permissionCacheKey()]=value;else delete all[permissionCacheKey()];
+   localStorage.setItem(DEVICE_PERMISSION_CACHE_STORE,JSON.stringify(all));
+ }catch{}
+}
+function syncPermissionCacheFromMeta(){
+ if(isMasterDevice()||!cloudMeta||!deviceId)return;
+ const auth=(cloudMeta.authorizedDevices||[]).find(d=>String(d.id)===String(deviceId));
+ if(!auth){writePermissionCache(null);return}
+ const assignedIds=Object.entries(cloudMeta.routeAssignments||{})
+   .filter(([rid,a])=>a&&a.active!==false&&String(a.deviceId)===String(deviceId))
+   .map(([rid])=>String(rid));
+ const surveyLocks={},routeLocks={};
+ assignedIds.forEach(rid=>{
+   if(cloudMeta.surveyLocks?.[rid])surveyLocks[rid]=cloudMeta.surveyLocks[rid];
+   if(cloudMeta.routeLocks?.[rid])routeLocks[rid]=cloudMeta.routeLocks[rid];
+ });
+ writePermissionCache({
+   authorized:true,
+   deviceName:auth.name||deviceName,
+   assignedIds,
+   surveyLocks,
+   routeLocks,
+   syncedAt:new Date().toISOString()
+ });
+}
 
 // V19 - Cloud state khai báo tập trung, không phụ thuộc global sinh từ id HTML.
 const CLOUD_CFG_STORE='CUALO_FIREBASE_CFG_V1';
@@ -318,7 +357,12 @@ function isMasterDevice(){
  }
  return false;
 }
-function authorizedDeviceEntry(){return (cloudMeta?.authorizedDevices||[]).find(d=>String(d.id)===String(deviceId))}
+function authorizedDeviceEntry(){
+ const live=(cloudMeta?.authorizedDevices||[]).find(d=>String(d.id)===String(deviceId));
+ if(live)return live;
+ const cached=readPermissionCache();
+ return cached?.authorized?{id:deviceId,name:cached.deviceName||deviceName,cached:true}:null;
+}
 function isAuthorizedDevice(){return isMasterDevice()||!!authorizedDeviceEntry()}
 function ensureDeviceCanUse(action='thao tác'){
  if(isMasterDevice())return true;
@@ -330,8 +374,18 @@ function ensureMaster(action='thao tác này'){
  if(!isMasterDevice()){alert(`Chỉ máy chính được phép ${action}.`);return false;}
  return true;
 }
-function routeLockInfo(id){return cloudMeta?.routeLocks?.[String(id)]||null}
-function routeAssignmentInfo(id){return cloudMeta?.routeAssignments?.[String(id)]||null}
+function routeLockInfo(id){
+ const rid=String(id);
+ return cloudMeta?.routeLocks?.[rid]||readPermissionCache()?.routeLocks?.[rid]||null;
+}
+function routeAssignmentInfo(id){
+ const rid=String(id);
+ const live=cloudMeta?.routeAssignments?.[rid];
+ if(live)return live;
+ const c=readPermissionCache();
+ if(c?.assignedIds?.includes(rid))return {deviceId,active:true,cached:true};
+ return null;
+}
 function isRouteAssignedToCurrentDevice(id){
  if(isMasterDevice())return true;
  const a=routeAssignmentInfo(id);
@@ -373,7 +427,10 @@ function cloudNeedsMandatoryRepair(obj){
  const list=Array.isArray(obj?.routes)?obj.routes:[];
  return countMandatoryRoutes(list)<defaultRoutes.length;
 }
-function surveyLockInfo(id){return cloudMeta?.surveyLocks?.[String(id)]||null}
+function surveyLockInfo(id){
+ const rid=String(id);
+ return cloudMeta?.surveyLocks?.[rid]||readPermissionCache()?.surveyLocks?.[rid]||null;
+}
 async function claimSurveyEditLock(id){
  if(isMasterDevice())return true;
  if(!ensureDeviceCanUse('cập nhật khảo sát'))return false;
@@ -569,7 +626,7 @@ function nextRouteId(){return routes.length?Math.max(...routes.map(r=>Number(r.i
 async function refreshCloudMeta(){
  if(!cloudDb||!cloudWorkspace)return;
  const s=await cloudDb.doc(`${cloudPath()}/config/meta`).get();
- if(s.exists){cloudMeta=s.data();reconcileMasterIdentityFromMeta();updateDeviceAccessUI();renderPermissionPanel();renderRouteTable();}
+ if(s.exists){cloudMeta=s.data();reconcileMasterIdentityFromMeta();syncPermissionCacheFromMeta();updateDeviceAccessUI();renderPermissionPanel();renderRouteTable();render();}
 }
 async function claimRouteEditLock(id){
  if(isMasterDevice())return true;
@@ -634,7 +691,7 @@ async function assignRouteToDevice(routeId,deviceIdToAssign){
  const locks={...(cloudMeta.routeLocks||{})};
  locks[String(routeId)]={locked:false,assignedDeviceId:dev.id,unlockedAt:new Date().toISOString(),unlockedByDeviceId:deviceId};
  cloudMeta.routeAssignments=assignments;cloudMeta.routeLocks=locks;
- await cloudDb.doc(`${cloudPath()}/config/meta`).set({routeAssignments:assignments,routeLocks:locks},{merge:true});
+ await cloudDb.doc(`${cloudPath()}/config/meta`).set({routeAssignments:assignments,routeLocks:locks,permissionUpdatedAt:new Date().toISOString()},{merge:true});
  renderRouteTable();refreshRouteSelect();
  cloudSetStatus(`Đã cấp tuyến ${routeId} cho ${dev.name||dev.id}. Thiết bị được sửa đúng 1 lần.`,'success');
 }
@@ -935,7 +992,7 @@ function calc(x){x.khoiLuongBun=Number((x.chieuDai*x.rong*x.dayBun).toFixed(2));
 function recalcAll(){localStorage.setItem(SETTINGS,JSON.stringify({mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}));data.forEach(calc);persist();render();}
 
 function render(){const q=$('searchText').value.toLowerCase().trim(),lv=$('filterLevel').value; const rows=data.filter(x=>(!lv||x.mucDo===lv)&&(!q||[x.ten,x.diemDau,x.diemCuoi,x.quyCach,x.ghiChu].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.idTuyen-b.idTuyen); let totalMud=0,totalCost=0,totalPits=0,totalLen=0,severe=0; data.forEach(x=>{totalMud+=Number(x.khoiLuongBun)||0;totalCost+=Number(x.thanhTien)||0;totalPits+=Number(x.hoThu)||0;totalLen+=Number(x.chieuDai)||0;if(x.mucDo!=='Bình thường')severe++}); $('kpiRoutes').textContent=`${data.length}/${routes.length}`;$('kpiLength').textContent=totalLen.toLocaleString('vi-VN')+' m';$('kpiMud').textContent=totalMud.toFixed(2)+' m³';$('kpiPits').textContent=totalPits.toLocaleString('vi-VN');$('kpiSevere').textContent=severe;$('kpiCost').textContent=money(totalCost);
- const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="17" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • H=${Number(x.cao||0)}m • bùn=${x.dayBun}m</span></td><td class="fw-bold">${Number(x.cao||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap">${(()=>{const sl=surveyLockInfo(x.idTuyen);if(isMasterDevice())return `<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa</button>${sl?.locked?` <button class="btn btn-warning btn-sm" onclick="unlockSurveyForDevices(${x.idTuyen})">Mở cho máy khác sửa</button>`:''}`;if(!isAuthorizedDevice())return '<span class="badge text-bg-warning">Chưa cấp quyền</span>';if(!isRouteAssignedToCurrentDevice(x.idTuyen))return '<span class="badge text-bg-light border">Không được cấp tuyến</span>';return sl?.locked?`<span class="badge text-bg-secondary">Đã khóa</span>`:`<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa 1 lần</button>`})()}</td></tr>`}).join('');}
+ const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="17" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • H=${Number(x.cao||0)}m • bùn=${x.dayBun}m</span></td><td class="fw-bold">${Number(x.cao||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap">${(()=>{const sl=surveyLockInfo(x.idTuyen);if(isMasterDevice())return `<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa</button>${sl?.locked?` <button class="btn btn-warning btn-sm" onclick="unlockSurveyForDevices(${x.idTuyen})">Mở cho máy khác sửa</button>`:''}`;if(!isAuthorizedDevice())return '<span class="badge text-bg-warning">Chưa cấp quyền thiết bị</span>';if(!isRouteAssignedToCurrentDevice(x.idTuyen))return '<span class="badge text-bg-light border">Đã cấp quyền máy • Chưa cấp tuyến</span>';return sl?.locked?`<span class="badge text-bg-secondary">Đã khóa</span>`:`<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa 1 lần</button>`})()}</td></tr>`}).join('');}
 function editRecord(id){
  if(!ensureDeviceCanUse('sửa khảo sát'))return;
  const sl=surveyLockInfo(id);if(!isMasterDevice()&&sl?.locked)return alert(`Khảo sát tuyến này đã khóa sau lần cập nhật bởi ${sl.byDeviceName||'thiết bị khác'}. Chỉ máy chính có thể mở lại.`);
@@ -1007,6 +1064,43 @@ function ensureFirebase(){
  cloudAuth=app.auth();cloudDb=app.firestore();return true;
 }
 function cloudPath(){return `workspaces/${cloudWorkspace}`}
+async function syncMyPermissionNow(showMessage=true){
+ if(isMasterDevice()){
+   if(showMessage)cloudSetStatus('Máy chính không cần đồng bộ quyền thiết bị.','info');
+   return true;
+ }
+ if(!cloudDb||!cloudWorkspace||!cloudUser){
+   if(showMessage)cloudSetStatus('Hãy Kết nối Cloud trước để đồng bộ quyền.','warning');
+   return false;
+ }
+ try{
+   const s=await cloudDb.doc(`${cloudPath()}/config/meta`).get();
+   if(!s.exists)throw new Error('Không tìm thấy cấu hình Workspace.');
+   cloudMeta=s.data()||{};
+   syncPermissionCacheFromMeta();
+   updateDeviceAccessUI();
+   renderPermissionPanel();
+   refreshRouteSelect($('selectRoute')?.value||'');
+   renderRouteTable();
+   render();
+   if(showMessage){
+     const c=readPermissionCache();
+     cloudSetStatus(isAuthorizedDevice()
+       ? `Đã đồng bộ quyền • ${deviceName}${c?.assignedIds?.length?` • ${c.assignedIds.length} tuyến được cấp`:''}`
+       : 'Máy này chưa có trong danh sách thiết bị được cấp quyền.','success');
+   }
+   return isAuthorizedDevice();
+ }catch(e){
+   if(showMessage)cloudSetStatus('Đồng bộ quyền lỗi: '+e.message,'danger');
+   return false;
+ }
+}
+function startPermissionAutoRefresh(){
+ clearInterval(permissionRefreshTimer);
+ if(isMasterDevice()||!cloudDb||!cloudUser||!cloudWorkspace)return;
+ permissionRefreshTimer=setInterval(()=>syncMyPermissionNow(false),5000);
+}
+
 async function requestDeviceAccess(){
  try{
    if(!cloudDb||!cloudUser||!cloudWorkspace)throw new Error('Hãy kết nối Cloud trước.');
@@ -1029,7 +1123,7 @@ async function grantDeviceAccess(id){
      const d=pending.find(x=>String(x.id)===String(id));if(!d)throw new Error('Yêu cầu cấp quyền không còn tồn tại.');
      const auth=[...(m.authorizedDevices||[])].filter(x=>String(x.id)!==String(id));
      auth.push({id:d.id,name:d.name||('Thiết bị '+String(d.id).slice(0,8)),grantedAt:new Date().toISOString(),grantedByDeviceId:deviceId});
-     tx.update(ref,{authorizedDevices:auth,pendingDevices:pending.filter(x=>String(x.id)!==String(id))});
+     tx.update(ref,{authorizedDevices:auth,pendingDevices:pending.filter(x=>String(x.id)!==String(id)),permissionUpdatedAt:new Date().toISOString()});
    });
    await refreshCloudMeta();
    cloudSetStatus('Đã cấp quyền thiết bị. Dữ liệu khảo sát hiện có được giữ nguyên.','success');
@@ -1050,7 +1144,7 @@ async function grantDeviceDirect(){
      const auth=[...(m.authorizedDevices||[])].filter(x=>String(x.id)!==id);
      auth.push({id,name,grantedAt:new Date().toISOString(),grantedByDeviceId:deviceId,grantedDirectly:true});
      const pending=[...(m.pendingDevices||[])].filter(x=>String(x.id)!==id);
-     tx.update(ref,{authorizedDevices:auth,pendingDevices:pending});
+     tx.update(ref,{authorizedDevices:auth,pendingDevices:pending,permissionUpdatedAt:new Date().toISOString()});
    });
    if($('directDeviceId'))$('directDeviceId').value='';
    if($('directDeviceName'))$('directDeviceName').value='';
@@ -1149,16 +1243,21 @@ async function cloudConnect(){
        }catch(e){cloudSetStatus('Không thể tự phục hồi danh mục tuyến Cloud: '+e.message,'danger')}
      }
    },e=>cloudSetStatus('Mất đồng bộ dữ liệu: '+e.message,'danger'));
-   if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=metaRef.onSnapshot(s=>{if(s.exists){cloudMeta=s.data();reconcileMasterIdentityFromMeta();updateDeviceAccessUI();renderPermissionPanel();refreshRouteSelect($('selectRoute').value);renderRouteTable();}},e=>cloudSetStatus('Mất đồng bộ phân quyền: '+e.message,'danger'));
+   if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=metaRef.onSnapshot(s=>{if(s.exists){
+     cloudMeta=s.data();reconcileMasterIdentityFromMeta();syncPermissionCacheFromMeta();
+     updateDeviceAccessUI();renderPermissionPanel();refreshRouteSelect($('selectRoute').value);renderRouteTable();render();
+   }},e=>cloudSetStatus('Mất đồng bộ phân quyền: '+e.message,'danger'));
    await cloudLoadAndWatchPhotos();
-   updateDeviceAccessUI();renderPermissionPanel();
+   syncPermissionCacheFromMeta();
+   updateDeviceAccessUI();renderPermissionPanel();render();
+   startPermissionAutoRefresh();
    cloudSetStatus(isMasterDevice()?`Đã kết nối • MÁY CHÍNH • ${MASTER_EMAIL}`:isAuthorizedDevice()?`Đã kết nối • Thiết bị đã được cấp quyền`:`Đã kết nối • Đang chờ máy chính cấp quyền`,'success');
  }catch(e){cloudSetStatus('Không kết nối được Cloud: '+e.message,'danger')}
 }
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:19,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:20,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -1283,10 +1382,13 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
    return false;
  }
 }
-async function cloudDisconnect(){
+async function cloudDisconnect(){clearInterval(permissionRefreshTimer);permissionRefreshTimer=null;
  try{if(cloudUnsub)cloudUnsub();cloudUnsub=null;if(cloudMetaUnsub)cloudMetaUnsub();cloudMetaUnsub=null;if(cloudPhotoUnsub)cloudPhotoUnsub();cloudPhotoUnsub=null;if(cloudAuth)await cloudAuth.signOut()}catch{}
  cloudDb=null;cloudAuth=null;cloudUser=null;cloudMeta=null;cloudWorkspace='';updateDeviceAccessUI();$('permissionPanel')?.classList.add('d-none');cloudSetStatus(isMasterDevice()?'Đã ngắt Cloud. Máy chính vẫn sửa dữ liệu cục bộ; kết nối lại để đồng bộ và cấp quyền máy phụ.':'Đã ngắt Cloud. Máy phụ cần kết nối lại để sử dụng quyền đã cấp.','info')
 }
+window.addEventListener('focus',()=>{if(cloudUser&&!isMasterDevice())syncMyPermissionNow(false)});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&cloudUser&&!isMasterDevice())syncMyPermissionNow(false)});
+
 function initCloudUI(){
  initDeviceIdentity();
  updateDeviceAccessUI();
