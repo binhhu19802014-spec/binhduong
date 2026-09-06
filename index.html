@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V25 Bổ sung tuyến mới</title>
+<title>QL Khảo sát Mương Cửa Lò - V26 Lưu tuyến mới</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -117,7 +117,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
  <button class="btn btn-outline-secondary" type="button" onclick="resetRouteForm()">Xóa nội dung nhập</button>
  <span class="small text-muted align-self-center">42 tuyến gốc không thể xóa; các tuyến bổ sung do máy chính tạo có thể sửa/xóa.</span>
 </div>
-<div class="card border p-3 mb-3 shadow-none"><input type="hidden" id="routeEditId"><div class="row g-2"><div class="col-md-2"><label class="form-label">Mã/STT tuyến</label><input id="routeIdInput" type="number" min="1" class="form-control" placeholder="Tự tăng nếu bỏ trống"></div><div class="col-md-4"><label class="form-label">Tên tuyến đường</label><input id="routeNameInput" class="form-control" placeholder="VD: NGUYỄN HUỆ"></div><div class="col-md-3"><label class="form-label">Điểm đầu</label><input id="routeStartInput" class="form-control"></div><div class="col-md-3"><label class="form-label">Điểm cuối</label><input id="routeEndInput" class="form-control"></div><div class="col-md-2"><label class="form-label">Chiều dài (m)</label><input id="routeLengthInput" type="number" min="0" step="0.01" class="form-control"></div><div class="col-md-4"><label class="form-label">Ghi chú tuyến</label><input id="routeNoteInput" class="form-control" placeholder="Khu vực, loại tuyến..."></div><div class="col-md-4"><label class="form-label">Quy cách mương mặc định</label><input id="routeSpecInput" class="form-control" list="specOptions" placeholder="VD: Mương BTCT đúc sẵn, có tấm đan"></div><div class="col-md-8 d-flex align-items-end gap-2 flex-wrap"><button id="saveRouteBtn" class="btn btn-main" type="button" onclick="saveRoute()">Lưu tuyến</button><button class="btn btn-outline-success" type="button" onclick="exportRoutesExcel()">Xuất danh mục</button><label class="btn btn-outline-primary mb-0">Nhập Excel<input id="routeImportFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="importRoutesExcel(event)"></label></div>
+<div class="card border p-3 mb-3 shadow-none"><input type="hidden" id="routeEditId"><div class="row g-2"><div class="col-md-2"><label class="form-label">Mã/STT tuyến</label><input id="routeIdInput" type="number" min="1" class="form-control" placeholder="Tự tăng nếu bỏ trống"></div><div class="col-md-4"><label class="form-label">Tên tuyến đường</label><input id="routeNameInput" class="form-control" placeholder="VD: NGUYỄN HUỆ"></div><div class="col-md-3"><label class="form-label">Điểm đầu</label><input id="routeStartInput" class="form-control"></div><div class="col-md-3"><label class="form-label">Điểm cuối</label><input id="routeEndInput" class="form-control"></div><div class="col-md-2"><label class="form-label">Chiều dài (m)</label><input id="routeLengthInput" type="number" min="0" step="0.01" class="form-control"></div><div class="col-md-4"><label class="form-label">Ghi chú tuyến</label><input id="routeNoteInput" class="form-control" placeholder="Khu vực, loại tuyến..."></div><div class="col-md-4"><label class="form-label">Quy cách mương mặc định</label><input id="routeSpecInput" class="form-control" list="specOptions" placeholder="VD: Mương BTCT đúc sẵn, có tấm đan"></div><div class="col-md-8 d-flex align-items-end gap-2 flex-wrap"><button id="saveNewRouteBtn" class="btn btn-success" type="button" onclick="saveNewRoute()">LƯU TUYẾN MỚI</button><button id="saveRouteBtn" class="btn btn-main d-none" type="button" onclick="saveRoute()">Lưu cập nhật tuyến</button><button class="btn btn-outline-success" type="button" onclick="exportRoutesExcel()">Xuất danh mục</button><label class="btn btn-outline-primary mb-0">Nhập Excel<input id="routeImportFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="importRoutesExcel(event)"></label></div>
 <div class="col-12" id="newRouteAssignWrap"><div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="newRouteAssignAll"><label class="form-check-label small" for="newRouteAssignAll"><b>Sau khi thêm tuyến mới, cấp tuyến này cho TẤT CẢ máy phụ đã được cấp quyền</b></label></div></div></div></div>
 <div class="row g-2 mb-2"><div class="col-md-6"><input id="routeSearch" class="form-control" placeholder="Tìm tên tuyến, điểm đầu, điểm cuối..." oninput="renderRouteTable()"></div><div class="col-md-6 text-md-end small text-muted align-self-center">Tổng số tuyến: <b id="routeCount">0</b> • Tuyến gốc: <b>42</b> • Tuyến bổ sung: <b id="supplementalRouteCount">0</b></div></div>
 <div class="table-responsive" style="max-height:430px"><table class="table table-bordered table-hover align-middle small"><thead class="table-light"><tr><th>STT</th><th>Mã</th><th>Tên tuyến</th><th>Điểm đầu</th><th>Điểm cuối</th><th>Chiều dài (m)</th><th>Ghi chú</th><th>Quy cách mặc định</th><th>Thao tác</th></tr></thead><tbody id="routeTableBody"></tbody></table></div>
@@ -941,7 +941,7 @@ function prepareNewRoute(){
  $('routeIdInput').value=id;
  $('routeIdInput').readOnly=true;
  $('routeNameInput').focus();
- if($('saveRouteBtn'))$('saveRouteBtn').textContent='Thêm tuyến mới';
+ updateRouteFormMode();
  if($('newRouteAssignWrap'))$('newRouteAssignWrap').classList.remove('d-none');
  if($('newRouteAssignAll'))$('newRouteAssignAll').checked=false;
 }
@@ -949,7 +949,9 @@ function prepareNewRoute(){
 function updateRouteFormMode(){
  const editId=Number($('routeEditId')?.value)||null;
  const isNew=editId===null;
- if($('saveRouteBtn'))$('saveRouteBtn').textContent=isNew?'Thêm tuyến mới':'Lưu cập nhật tuyến';
+ if($('saveNewRouteBtn'))$('saveNewRouteBtn').classList.toggle('d-none',!isNew||!isMasterDevice());
+ if($('saveRouteBtn'))$('saveRouteBtn').classList.toggle('d-none',isNew);
+ if($('saveRouteBtn'))$('saveRouteBtn').textContent='Lưu cập nhật tuyến';
  if($('newRouteAssignWrap'))$('newRouteAssignWrap').classList.toggle('d-none',!isNew||!isMasterDevice());
  if($('routeIdInput'))$('routeIdInput').readOnly=isNew&&isMasterDevice();
 }
@@ -957,6 +959,88 @@ function updateRouteFormMode(){
 function routeNameDuplicate(name,ignoreId=null){
  const key=String(name||'').trim().toUpperCase();
  return routes.find(r=>String(r.name||'').trim().toUpperCase()===key && Number(r.id)!==Number(ignoreId));
+}
+
+async function saveNewRoute(){
+ if(!isMasterDevice())return alert('Chỉ máy chính được lưu tuyến mới.');
+ if(Number($('routeEditId')?.value))return saveRoute();
+
+ const id=Number($('routeIdInput')?.value)||nextRouteId();
+ const name=String($('routeNameInput')?.value||'').trim().toUpperCase();
+ const dau=String($('routeStartInput')?.value||'').trim();
+ const cuoi=String($('routeEndInput')?.value||'').trim();
+ const tong=Number($('routeLengthInput')?.value);
+ const note=String($('routeNoteInput')?.value||'').trim();
+ const defaultSpec=String($('routeSpecInput')?.value||'').trim();
+
+ if(!name)return alert('Vui lòng nhập tên tuyến đường mới.');
+ if(!Number.isFinite(tong)||tong<0)return alert('Chiều dài tuyến không hợp lệ.');
+ if(routes.some(r=>Number(r.id)===id))return alert('Mã tuyến đã tồn tại. Bấm + Thêm tuyến mới để lấy mã mới.');
+ const same=routeNameDuplicate(name,null);
+ if(same&&!confirm(`Đã có tuyến "${same.name}" (mã ${same.id}). Vẫn lưu tuyến mới này?`))return;
+
+ const newRoute={
+   id,name,dau,cuoi,tong,note,defaultSpec,
+   isSupplemental:true,
+   createdAt:new Date().toISOString(),
+   createdBy:getUpdateActor(),
+   updatedAt:new Date().toISOString(),
+   updatedBy:getUpdateActor()
+ };
+
+ // Lưu local trước để không mất nội dung nếu mạng chập chờn.
+ routes.push(newRoute);
+ normalizeRoutes();
+ try{
+   localStorage.setItem(ROUTES_STORE,JSON.stringify(routes));
+ }catch(e){console.warn('LOCAL ROUTE SAVE',e)}
+
+ if(!cloudDb||!cloudUser||!cloudWorkspace){
+   refreshRouteSelect(id);renderRouteTable();render();
+   alert(`Đã lưu tuyến mới ${id}. ${name} trên máy chính. Chưa kết nối Cloud nên chưa đồng bộ sang các máy khác.`);
+   resetRouteForm();
+   return;
+ }
+
+ try{
+   const ref=cloudDb.doc(`${cloudPath()}/state/main`);
+   await cloudDb.runTransaction(async tx=>{
+     const snap=await tx.get(ref);
+     const obj=snap.exists?(snap.data()||{}):{};
+     const remoteRoutes=mergeRoutesOntoBase(Array.isArray(obj.routes)?obj.routes:[]);
+     const exists=remoteRoutes.some(r=>Number(r.id)===id);
+     if(exists)throw new Error(`Mã tuyến ${id} đã tồn tại trên Cloud.`);
+     remoteRoutes.push(newRoute);
+     remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
+     tx.set(ref,{
+       ...obj,
+       version:26,
+       routes:remoteRoutes,
+       updatedAt:new Date().toISOString(),
+       updatedBy:getUpdateActor()
+     },{merge:false});
+   });
+
+   if($('newRouteAssignAll')?.checked && cloudMeta){
+     await assignRouteToDevice(id,'ALL');
+   }
+
+   const fresh=await ref.get();
+   if(fresh.exists)applyCloudState(fresh.data()||{});
+   refreshRouteSelect(id);renderRouteTable();render();
+   cloudSetStatus(`Đã LƯU TUYẾN MỚI ${id}. ${name} và đồng bộ cho các máy.`,'success');
+   alert(`ĐÃ LƯU TUYẾN MỚI THÀNH CÔNG\n\nMã: ${id}\nTên: ${name}\nTuyến đã được đồng bộ lên Cloud.`);
+   resetRouteForm();
+ }catch(e){
+   // Remove the optimistic local duplicate if cloud rejected due to duplicate id.
+   if(String(e.message||'').includes('đã tồn tại trên Cloud')){
+     routes=routes.filter(r=>Number(r.id)!==id);
+     ensure42RoutesLocal(routes);
+   }
+   renderRouteTable();refreshRouteSelect();
+   cloudSetStatus('Lưu tuyến mới lên Cloud lỗi: '+e.message,'danger');
+   alert('Tuyến mới chưa lưu được lên Cloud: '+e.message);
+ }
 }
 
 async function saveRoute(){
@@ -1022,7 +1106,9 @@ function deleteRoute(id){
  if(!confirm(msg))return;routes=routes.filter(r=>r.id!==id);persistRoutes();refreshRouteSelect();renderRouteTable();render();
 }
 function renderRouteTable(){
- // V16 - GIAI ĐOẠN 1:
+ updateRouteFormMode();
+ // V26 - bảng tuyến + lưu tuyến bổ sung:
+
  // Dựng bảng tuyến hoàn toàn độc lập với Cloud/phân quyền.
  try{
    if(!Array.isArray(routes)||countMandatoryRoutes(routes)<defaultRoutes.length){
@@ -1666,7 +1752,7 @@ async function loadCloudStateAndWatch(){
      const safeRoutes=mergeRoutesOntoBase(Array.isArray(rawState.routes)?rawState.routes:[]);
      await stateRef.set({
        routes:safeRoutes,
-       version:25,
+       version:26,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
      },{merge:true});
@@ -1826,7 +1912,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:25,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:26,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
