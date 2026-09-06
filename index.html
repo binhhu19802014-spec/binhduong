@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V37 Sửa/Xóa dữ liệu máy chủ triệt để</title>
+<title>QL Khảo sát Mương Cửa Lò - V38 Sửa/Xóa trực tiếp dữ liệu khảo sát</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -54,7 +54,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 <header class="app-header">
  <div class="container-fluid px-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-   <div><h2 class="fw-bold mb-1">HỆ THỐNG QUẢN LÝ KHẢO SÁT & DỰ TOÁN MƯƠNG THOÁT NƯỚC <span class="badge text-bg-primary">V37</span></h2><div class="small opacity-75">Số hóa hiện trường • Khối lượng • Dự toán • Báo cáo</div></div>
+   <div><h2 class="fw-bold mb-1">HỆ THỐNG QUẢN LÝ KHẢO SÁT & DỰ TOÁN MƯƠNG THOÁT NƯỚC <span class="badge text-bg-primary">V38</span></h2><div class="small opacity-75">Số hóa hiện trường • Khối lượng • Dự toán • Báo cáo</div></div>
    <div class="account-panel no-print">
     <div class="account-user"><small>Đang sử dụng</small><strong id="currentUserLabel">—</strong></div>
     <button id="installPwaBtn" class="btn btn-sm btn-outline-light d-none" type="button">Cài ứng dụng</button><button class="btn btn-sm btn-outline-light" type="button" onclick="logoutAccount()">Đăng xuất</button>
@@ -935,7 +935,7 @@ async function saveNewRouteFromSurvey(){
      const maxId=remoteRoutes.reduce((m,r)=>Math.max(m,Number(r.id)||0),0),newId=maxId+1,now=new Date().toISOString();
      createdRoute={id:newId,name,dau,cuoi,tong,note,defaultSpec,isSupplemental:true,sharedSurveyAccess:true,createdAt:now,createdBy:getUpdateActor(),createdByDeviceId:deviceId,updatedAt:now,updatedBy:getUpdateActor()};
      remoteRoutes.push(createdRoute);remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
-     tx.set(stateRef,{...obj,version:37,routes:remoteRoutes,updatedAt:now,updatedBy:getUpdateActor()},{merge:false});
+     tx.set(stateRef,{...obj,version:38,routes:remoteRoutes,updatedAt:now,updatedBy:getUpdateActor()},{merge:false});
    });
    if(!createdRoute)throw new Error('Không tạo được tuyến mới.');
    const fresh=await stateRef.get();if(fresh.exists)applyCloudState(fresh.data()||{});
@@ -1280,7 +1280,7 @@ async function saveNewRoute(){
      remoteRoutes.sort((a,b)=>Number(a.id)-Number(b.id));
      tx.set(ref,{
        ...obj,
-       version:37,
+       version:38,
        routes:remoteRoutes,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
@@ -1410,7 +1410,7 @@ async function deleteRoute(id){
 
        tx.set(stateRef,{
          ...state,
-         version:37,
+         version:38,
          routes:remoteRoutes,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor()
@@ -1697,7 +1697,8 @@ async function saveRecord(e){
        ?await masterUpsertSurveyRecordToCloud(r.id)
        :await cloudPushState(true,r.id,'survey');
      if(!stateOk){
-       setSaveStatus(masterEdit?'Máy chủ đã lưu trên máy nhưng chưa ghi được lên Cloud.':'Đã lưu trên máy nhưng dữ liệu Cloud chưa đồng bộ.','warning');
+       setSaveStatus(masterEdit?'MÁY CHỦ: chưa ghi được thay đổi lên Cloud. Dữ liệu Cloud chưa bị thay đổi.':'Đã lưu trên máy nhưng dữ liệu Cloud chưa đồng bộ.','danger');
+       if(masterEdit)return false;
      }else{
        if(!masterEdit)await scheduleDelayedAuxLockAfterSuccessfulUpdate(r.id,'survey');
        await pullSharedStateNow(false);
@@ -1746,7 +1747,7 @@ async function recalcAll(){
        return y;
      });
      tx.set(ref,{
-       ...obj,version:37,data:remoteData,
+       ...obj,version:38,data:remoteData,
        settings:{...(obj.settings||{}),mudPrice,pitPrice},
        updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()
      },{merge:false});
@@ -1762,7 +1763,7 @@ function refreshMasterDeleteControls(){
 }
 function render(){
  refreshMasterDeleteControls();const q=$('searchText').value.toLowerCase().trim(),lv=$('filterLevel').value; const rows=data.filter(x=>(!lv||x.mucDo===lv)&&(!q||[x.ten,x.diemDau,x.diemCuoi,x.quyCach,x.ghiChu].join(' ').toLowerCase().includes(q))).sort((a,b)=>a.idTuyen-b.idTuyen); let totalMud=0,totalCost=0,totalPits=0,totalLen=0,severe=0; data.forEach(x=>{totalMud+=Number(x.khoiLuongBun)||0;totalCost+=Number(x.thanhTien)||0;totalPits+=Number(x.hoThu)||0;totalLen+=Number(x.chieuDai)||0;if(x.mucDo!=='Bình thường')severe++}); $('kpiRoutes').textContent=`${data.length}/${routes.length}`;$('kpiLength').textContent=totalLen.toLocaleString('vi-VN')+' m';$('kpiMud').textContent=totalMud.toFixed(2)+' m³';$('kpiPits').textContent=totalPits.toLocaleString('vi-VN');$('kpiSevere').textContent=severe;$('kpiCost').textContent=money(totalCost);
- const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="17" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • H=${Number(x.cao||0)}m • bùn=${x.dayBun}m</span></td><td class="fw-bold">${Number(x.cao||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap">${(()=>{const sl=surveyLockInfo(x.idTuyen);if(isMasterDevice())return `<button class="btn btn-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa / cập nhật</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa dữ liệu</button>${isActiveAuxLock(sl)?` <button class="btn btn-warning btn-sm" onclick="unlockSurveyForDevices(${x.idTuyen})">Mở khóa tuyến</button>`:''}`;if(!isAuthorizedDevice())return '<span class="badge text-bg-warning">Chưa cấp quyền thiết bị</span>';if(!isRouteAssignedToCurrentDevice(x.idTuyen))return '<span class="badge text-bg-light border">Đã cấp quyền máy • Chưa cấp tuyến</span>';return isActiveAuxLock(sl)
+ const tb=$('tableBody'); if(!rows.length){tb.innerHTML='<tr><td colspan="17" class="text-center text-muted py-4">Không có dữ liệu phù hợp.</td></tr>';return} tb.innerHTML=rows.map((x,i)=>{const cls=x.mucDo==='Bình thường'?'bg-low':x.mucDo==='Nghiêm trọng'?'bg-med':'bg-high';const img=x.hinhAnh?`<div class="text-center"><img class="thumb" src="${x.hinhAnh}" onclick="showImage(${x.idTuyen})" alt="Ảnh hiện trạng"><div class="small text-success mt-1">Có ảnh</div></div>`:'<span class="muted">Chưa có ảnh</span>';const flash=String(x.idTuyen)===String(lastSavedRouteId)?' flash-row':'';return `<tr data-route-id="${x.idTuyen}" class="${flash}"><td>${i+1}</td><td class="fw-bold">${escapeHtml(x.ten)}</td><td>${escapeHtml(x.diemDau||'')}</td><td>${escapeHtml(x.diemCuoi||'')}</td><td class="date-cell">${escapeHtml(formatDateVN(x.ngay||''))}</td><td>${img}</td><td><b>${escapeHtml(x.quyCach)}</b><br><span class="muted">Tổng L=${x.chieuDai}m • B=${x.rong}m • H=${Number(x.cao||0)}m • bùn=${x.dayBun}m</span></td><td class="fw-bold">${Number(x.cao||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiPhai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuPhai||0).toLocaleString('vi-VN')}</td><td class="fw-bold text-primary">${Number(x.chieuDaiTrai||0).toLocaleString('vi-VN')}</td><td>${Number(x.hoThuTrai||0).toLocaleString('vi-VN')}</td><td><span class="status-badge ${cls}">${x.mucDo}</span></td><td class="fw-bold">${Number(x.khoiLuongBun).toLocaleString('vi-VN')}</td><td>${x.hoThu}</td><td class="fw-bold text-danger">${money(x.thanhTien)}</td><td class="no-print text-nowrap">${(()=>{const sl=surveyLockInfo(x.idTuyen);if(isMasterDevice())return `<button class="btn btn-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa / cập nhật</button> <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord(${x.idTuyen})">Xóa khỏi dữ liệu</button>${isActiveAuxLock(sl)?` <button class="btn btn-warning btn-sm" onclick="unlockSurveyForDevices(${x.idTuyen})">Mở khóa tuyến</button>`:''}`;if(!isAuthorizedDevice())return '<span class="badge text-bg-warning">Chưa cấp quyền thiết bị</span>';if(!isRouteAssignedToCurrentDevice(x.idTuyen))return '<span class="badge text-bg-light border">Đã cấp quyền máy • Chưa cấp tuyến</span>';return isActiveAuxLock(sl)
  ?`<span class="badge text-bg-secondary">${escapeHtml(lockStatusText(sl))}</span>`
  :`${isPendingAuxLock(sl)?`<span class="badge text-bg-warning me-1">Còn ${lockRemainingMinutes(sl)} phút trước khi khóa</span>`:''}<button class="btn btn-outline-primary btn-sm" onclick="editRecord(${x.idTuyen})">Sửa / cập nhật</button>`})()}</td></tr>`}).join('');}
 function editRecord(id){
@@ -1818,95 +1819,102 @@ function markSavedPhotoForDeletion(){
 function removeCurrentPhoto(){markSavedPhotoForDeletion();}
 function resetForm(){$('surveyForm').reset();$('editId').value='';$('surveyDate').value=today();$('rightLength').value=0;$('leftLength').value=0;$('rightPits').value=0;$('leftPits').value=0;$('width').value=.5;$('height').value=0;currentImage='';savedImageBeforeEdit='';pendingImagePromise=null;photoChanged=false;if($('photo'))$('photo').value='';$('photoPreview').removeAttribute('src');$('photoPreviewWrap').classList.add('d-none');if($('photoStatus'))$('photoStatus').textContent='Chưa có ảnh. Chọn hoặc chụp ảnh để cập nhật.';$('formTitle').textContent='Nhập nhật ký khảo sát';$('cancelEdit').classList.add('d-none');loadRoute();}
 async function deleteRecord(id){
- if(!ensureMaster('xóa dữ liệu khảo sát'))return;
- if(!requireMasterCloudWriteSession('xóa dữ liệu khảo sát'))return;
-
  const rid=Number(id);
  if(!Number.isFinite(rid))return;
+
+ if(!isMasterDevice()){
+   alert('Chỉ MÁY CHỦ mới được xóa dữ liệu khảo sát.');
+   return;
+ }
+
  const rec=data.find(x=>Number(x.idTuyen)===rid);
  const route=routes.find(r=>Number(r.id)===rid);
  const ten=rec?.ten||route?.name||`Tuyến ${rid}`;
 
- const typed=prompt(
-   `MÁY CHỦ - XÓA DỮ LIỆU KHẢO SÁT\n\nTuyến: ${rid}. ${ten}\n\n`+
-   `Số liệu khảo sát và ảnh của tuyến sẽ bị xóa khỏi Cloud.\n`+
-   `Danh mục tuyến vẫn được giữ để có thể nhập lại.\n\nNhập XOA để xác nhận:`
- );
- if(String(typed||'').trim().toUpperCase()!=='XOA')return;
+ if(!confirm(`Xóa dữ liệu khảo sát của tuyến:\n\n${rid}. ${ten}\n\nDanh mục tuyến vẫn được giữ nguyên để có thể nhập lại.\n\nBạn có chắc chắn muốn xóa?`))return;
+
+ // Nếu máy chủ chưa có phiên Firebase chính, tự yêu cầu kết nối rõ ràng.
+ if(!hasMasterCloudWriteSession()){
+   alert(`MÁY CHỦ CHƯA KẾT NỐI ĐÚNG TÀI KHOẢN CLOUD.\n\nHãy bấm Cloud và kết nối bằng ${MASTER_EMAIL}, sau đó bấm Xóa dữ liệu lại.`);
+   cloudSetStatus(`Cần đăng nhập ${MASTER_EMAIL} để xóa dữ liệu.`,'danger');
+   return;
+ }
 
  const stateRef=cloudDb.doc(`${cloudPath()}/state/main`);
  masterDataMutationInProgress=true;
  try{
-   // BƯỚC 1 - XÓA BẢN GHI TRÊN STATE/MAIN. Đây là thao tác quyết định.
-   await cloudDb.runTransaction(async tx=>{
-     const snap=await tx.get(stateRef);
-     if(!snap.exists)throw new Error('Không tìm thấy dữ liệu Cloud state/main.');
-     const state=snap.data()||{};
-     const before=Array.isArray(state.data)?state.data:[];
-     const after=before.filter(x=>Number(x.idTuyen)!==rid);
+   // Đọc bản mới nhất trực tiếp từ SERVER.
+   const snap=await stateRef.get({source:'server'}).catch(()=>stateRef.get());
+   if(!snap.exists)throw new Error('Không tìm thấy state/main trên Cloud.');
+   const state=snap.data()||{};
+   const before=Array.isArray(state.data)?state.data:[];
+   const after=before.filter(x=>String(x.idTuyen)!==String(rid));
 
-     tx.set(stateRef,{
-       ...state,
-       version:37,
+   if(after.length===before.length){
+     // Cloud đã không còn bản ghi; vẫn dọn local để giao diện đúng.
+     data=data.filter(x=>String(x.idTuyen)!==String(rid));
+   }else{
+     // Chỉ update trường data, KHÔNG ghi lại routes/settings và KHÔNG phụ thuộc config/meta.
+     await stateRef.update({
        data:after,
+       version:38,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor(),
-       lastMasterDelete:{routeId:rid,at:new Date().toISOString(),by:getUpdateActor()}
-     },{merge:false});
-   });
+       lastMasterDelete:{
+         routeId:rid,
+         routeName:ten,
+         at:new Date().toISOString(),
+         by:getUpdateActor()
+       }
+     });
+   }
 
-   // BƯỚC 2 - XÓA ẢNH. Không để lỗi ảnh làm hoàn tác việc xóa số liệu.
+   // Xác minh lại từ SERVER ngay sau khi xóa.
+   const verify=await stateRef.get({source:'server'}).catch(()=>stateRef.get());
+   const verifiedState=verify.exists?(verify.data()||{}):{};
+   const remains=(Array.isArray(verifiedState.data)?verifiedState.data:[])
+     .some(x=>String(x.idTuyen)===String(rid));
+   if(remains)throw new Error('Bản ghi vẫn còn trên Cloud sau khi xóa.');
+
+   // Chỉ sau khi server xác nhận đã xóa mới cập nhật giao diện/local.
+   applyCloudState(verifiedState);
+   data=data.filter(x=>String(x.idTuyen)!==String(rid));
+   try{localStorage.setItem(STORE,JSON.stringify(data))}catch{}
+
+   // Xóa ảnh riêng; lỗi ảnh không làm bản ghi khảo sát quay lại.
    try{
      await cloudDb.doc(`${cloudPath()}/photos/${rid}`).delete();
-   }catch(photoErr){
-     console.warn('PHOTO DELETE V37',photoErr);
-   }
-   cloudPhotoCache.delete(String(rid));
+     cloudPhotoCache.delete(String(rid));
+   }catch(err){console.warn('Không xóa được ảnh, nhưng dữ liệu khảo sát đã xóa:',err)}
 
-   // BƯỚC 3 - DỌN KHÓA. Đây cũng là thao tác phụ, không chặn kết quả xóa chính.
+   // Dọn khóa riêng, không ảnh hưởng thao tác xóa chính.
    try{
      const metaRef=cloudDb.doc(`${cloudPath()}/config/meta`);
-     await cloudDb.runTransaction(async tx=>{
-       const ms=await tx.get(metaRef);
-       if(!ms.exists)return;
+     const ms=await metaRef.get();
+     if(ms.exists){
        const meta=ms.data()||{};
        const surveyLocks={...(meta.surveyLocks||{})};
        const routeLocks={...(meta.routeLocks||{})};
        delete surveyLocks[String(rid)];
        delete routeLocks[String(rid)];
-       tx.set(metaRef,{surveyLocks,routeLocks,permissionUpdatedAt:new Date().toISOString()},{merge:true});
-     });
-   }catch(lockErr){
-     console.warn('LOCK CLEANUP V37',lockErr);
-   }
+       await metaRef.update({surveyLocks,routeLocks,permissionUpdatedAt:new Date().toISOString()});
+     }
+   }catch(err){console.warn('Không dọn được khóa, nhưng dữ liệu khảo sát đã xóa:',err)}
 
-   // BƯỚC 4 - XÁC MINH TRỰC TIẾP TỪ SERVER.
-   const verify=await stateRef.get({source:'server'}).catch(()=>stateRef.get());
-   const obj=verify.exists?(verify.data()||{}):{};
-   const stillExists=(Array.isArray(obj.data)?obj.data:[]).some(x=>Number(x.idTuyen)===rid);
-   if(stillExists)throw new Error('Cloud vẫn còn bản ghi sau thao tác xóa. Vui lòng kiểm tra quyền Firestore.');
-
-   applyCloudState(obj);
-   data=data.filter(x=>Number(x.idTuyen)!==rid);
-   try{localStorage.setItem(STORE,JSON.stringify(data))}catch{}
-
-   if(String($('editId')?.value||'')===String(rid)){
-     $('editId').value='';
-     currentImage='';savedImageBeforeEdit='';pendingImagePromise=null;photoChanged=false;
-   }
-
+   $('editId').value='';
+   currentImage='';savedImageBeforeEdit='';pendingImagePromise=null;photoChanged=false;
    render();
-   refreshRouteSelect(rid);
-   setSaveStatus(`ĐÃ XÓA TRÊN CLOUD: ${rid}. ${ten}. Có thể nhập lại tuyến này.`,'success');
-   setSharedDataStatus(`Máy chủ đã xóa và xác minh tuyến ${rid} không còn trong Dữ liệu khảo sát Cloud.`,'success');
-   alert(`ĐÃ XÓA THÀNH CÔNG TRÊN CLOUD\n\n${rid}. ${ten}\n\nTuyến vẫn còn trong Quản lý tuyến để nhập lại số liệu.`);
+   refreshRouteSelect('');
+   setSaveStatus(`ĐÃ XÓA: ${rid}. ${ten} khỏi Dữ liệu khảo sát Cloud.`,'success');
+   setSharedDataStatus(`Đã xác minh trên server: tuyến ${rid} không còn bản ghi khảo sát.`,'success');
+   alert(`ĐÃ XÓA THÀNH CÔNG\n\n${rid}. ${ten}\n\nBản ghi đã được xác minh không còn trên Cloud.`);
  }catch(err){
-   console.error('MASTER DELETE SURVEY V37',err);
-   setSaveStatus('XÓA KHÔNG THÀNH CÔNG: '+(err?.message||err),'danger');
-   setSharedDataStatus('Xóa Cloud lỗi: '+(err?.message||err),'danger');
-   alert('MÁY CHỦ CHƯA XÓA ĐƯỢC DỮ LIỆU:\n'+(err?.message||err));
+   console.error('V38 DELETE ERROR',err);
+   setSaveStatus('KHÔNG XÓA ĐƯỢC: '+(err?.message||err),'danger');
+   setSharedDataStatus('Lỗi xóa Cloud: '+(err?.message||err),'danger');
+   alert(`KHÔNG XÓA ĐƯỢC DỮ LIỆU\n\n${err?.message||err}\n\nNếu có dòng "Missing or insufficient permissions", hãy kết nối lại Cloud bằng tài khoản máy chính.`);
  }finally{
-   setTimeout(()=>{masterDataMutationInProgress=false},700);
+   setTimeout(()=>{masterDataMutationInProgress=false},500);
  }
 }
 async function deleteAllCloudPhotos(){
@@ -1942,7 +1950,7 @@ async function masterDeleteAllSurveyData(){
        const obj=snap.exists?(snap.data()||{}):{};
        tx.set(stateRef,{
          ...obj,
-         version:37,
+         version:38,
          data:[],
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor()
@@ -1999,7 +2007,7 @@ async function masterDeleteAllSupplementalRoutes(){
 
        tx.set(stateRef,{
          ...state,
-         version:37,
+         version:38,
          routes:newRoutes,
          data:newData,
          updatedAt:new Date().toISOString(),
@@ -2060,7 +2068,7 @@ async function masterFactoryResetWorkspace(){
 
        tx.set(stateRef,{
          ...state,
-         version:37,
+         version:38,
          routes:base,
          data:[],
          updatedAt:new Date().toISOString(),
@@ -2497,7 +2505,7 @@ async function loadCloudStateAndWatch(){
      const safeRoutes=mergeRoutesOntoBase(Array.isArray(rawState.routes)?rawState.routes:[]);
      await stateRef.set({
        routes:safeRoutes,
-       version:37,
+       version:38,
        updatedAt:new Date().toISOString(),
        updatedBy:getUpdateActor()
      },{merge:true});
@@ -2660,7 +2668,7 @@ async function cloudConnect(){
 function buildCloudState(){
  ensure42RoutesLocal(routes);
  const cloudData=data.map(x=>{const y={...x};delete y.hinhAnh;return y;});
- return {version:37,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
+ return {version:38,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor(),routes:mergeRoutesOntoBase(routes),data:cloudData,settings:{mudPrice:Number($('cfgMudPrice').value||0),pitPrice:Number($('cfgPitPrice').value||0)}};
 }
 function applyCloudState(obj){
  try{
@@ -2760,40 +2768,40 @@ async function masterUpsertSurveyRecordToCloud(routeId){
  masterDataMutationInProgress=true;
  try{
    const localRec=data.find(x=>Number(x.idTuyen)===rid);
-   if(!localRec)throw new Error('Không tìm thấy bản ghi khảo sát cần cập nhật.');
-   const localRoute=routes.find(r=>Number(r.id)===rid);
+   if(!localRec)throw new Error('Không tìm thấy bản ghi cần cập nhật.');
 
-   await cloudDb.runTransaction(async tx=>{
-     const snap=await tx.get(ref);
-     const remote=snap.exists?(snap.data()||{}):{routes:[],data:[],settings:{}};
-     const remoteRoutes=mergeRoutesOntoBase(Array.isArray(remote.routes)?remote.routes:[]);
+   const snap=await ref.get({source:'server'}).catch(()=>ref.get());
+   if(!snap.exists)throw new Error('Không tìm thấy state/main trên Cloud.');
+   const state=snap.data()||{};
+   const remoteData=Array.isArray(state.data)?state.data.slice():[];
 
-     if(localRoute){
-       const ri=remoteRoutes.findIndex(r=>Number(r.id)===rid);
-       const merged={...(ri>=0?remoteRoutes[ri]:{}),...localRoute,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()};
-       if(ri>=0)remoteRoutes[ri]=merged; else remoteRoutes.push(merged);
-     }
+   const clean={...localRec,localPending:false,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()};
+   delete clean.hinhAnh;
+   const idx=remoteData.findIndex(x=>String(x.idTuyen)===String(rid));
+   if(idx>=0)remoteData[idx]=clean; else remoteData.push(clean);
 
-     const remoteData=Array.isArray(remote.data)?remote.data.slice():[];
-     const clean={...localRec,localPending:false,updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()};
-     delete clean.hinhAnh;
-     const di=remoteData.findIndex(x=>Number(x.idTuyen)===rid);
-     if(di>=0)remoteData[di]=clean; else remoteData.push(clean);
-
-     tx.set(ref,{
-       ...remote,version:37,routes:remoteRoutes,data:remoteData,
-       updatedAt:new Date().toISOString(),updatedBy:getUpdateActor()
-     },{merge:false});
+   // Chỉ ghi trường data: máy chủ sửa khảo sát không đụng routeAssignments/locks/routes.
+   await ref.update({
+     data:remoteData,
+     version:38,
+     updatedAt:new Date().toISOString(),
+     updatedBy:getUpdateActor(),
+     lastMasterUpdate:{routeId:rid,at:new Date().toISOString(),by:getUpdateActor()}
    });
 
-   const fresh=await ref.get({source:'server'}).catch(()=>ref.get());
-   if(fresh.exists)applyCloudState(fresh.data()||{});
-   setSharedDataStatus(`MÁY CHỦ ĐÃ SỬA tuyến ${rid} trên Cloud thành công.`,'success');
+   const verify=await ref.get({source:'server'}).catch(()=>ref.get());
+   if(!verify.exists)throw new Error('Không đọc lại được dữ liệu sau cập nhật.');
+   const obj=verify.data()||{};
+   const serverRec=(Array.isArray(obj.data)?obj.data:[]).find(x=>String(x.idTuyen)===String(rid));
+   if(!serverRec)throw new Error('Cloud chưa có bản ghi sau cập nhật.');
+
+   applyCloudState(obj);
+   setSharedDataStatus(`Đã xác minh trên server: máy chủ cập nhật tuyến ${rid} thành công.`,'success');
    return true;
  }catch(err){
-   console.error('MASTER UPDATE SURVEY V37',err);
-   alert('Máy chủ chưa sửa được dữ liệu trên Cloud: '+(err?.message||err));
-   setSharedDataStatus('Sửa dữ liệu Cloud lỗi: '+(err?.message||err),'danger');
+   console.error('V38 MASTER UPDATE ERROR',err);
+   alert(`KHÔNG SỬA ĐƯỢC DỮ LIỆU\n\n${err?.message||err}\n\nNếu báo thiếu quyền, hãy kết nối lại Cloud bằng ${MASTER_EMAIL}.`);
+   setSharedDataStatus('Lỗi sửa Cloud: '+(err?.message||err),'danger');
    return false;
  }finally{
    setTimeout(()=>{masterDataMutationInProgress=false},500);
@@ -2843,7 +2851,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
 
        tx.set(ref,{
          ...remote,
-         version:37,
+         version:38,
          updatedAt:new Date().toISOString(),
          updatedBy:getUpdateActor(),
          routes:remoteRoutes,
@@ -2865,7 +2873,7 @@ async function cloudPushState(force=false,routeId=null,mode='survey'){
          const safeRoutes=mergeRoutesOntoBase(Array.isArray(remote.routes)?remote.routes:routes);
          tx.set(ref,{
            ...remote,
-           version:37,
+           version:38,
            updatedAt:new Date().toISOString(),
            updatedBy:getUpdateActor(),
            routes:safeRoutes,
