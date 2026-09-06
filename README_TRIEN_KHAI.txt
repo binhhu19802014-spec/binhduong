@@ -39,3 +39,8 @@ PHIÊN BẢN: 1 TÀI KHOẢN FIREBASE + PHÂN QUYỀN THIẾT BỊ + KHÓA TUY�
 LƯU Ý BẢO MẬT
 - Do tất cả thiết bị dùng cùng một Firebase account, phân quyền theo thiết bị/khóa tuyến được phần mềm thực thi ở tầng ứng dụng.
 - Nếu cần ngăn tuyệt đối việc một thiết bị cố tình sửa dữ liệu bằng công cụ lập trình, phải chuyển sang mỗi người/mỗi thiết bị một tài khoản Firebase hoặc có backend cấp token riêng.
+
+7. KHÓA CẬP NHẬT KHẢO SÁT 1 LẦN
+- Máy phụ: mỗi tuyến chỉ được LƯU/CẬP NHẬT KHẢO SÁT đúng 1 lần, sau đó khóa với tất cả máy phụ.
+- Máy chính: sửa/cập nhật khảo sát không giới hạn, có nút Mở cho máy khác sửa.
+- Khóa khảo sát và khóa danh mục tuyến được lưu riêng trong config/meta để đồng bộ giữa các máy.
