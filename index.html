@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QL Khảo sát Mương Cửa Lò - V39 Giữ form khi cập nhật</title>
+<title>QL Khảo sát Mương Cửa Lò - V40 Google Maps + Bình đồ CAD</title>
 <meta name="theme-color" content="#164e63">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -54,7 +54,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
 <header class="app-header">
  <div class="container-fluid px-4">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-   <div><h2 class="fw-bold mb-1">HỆ THỐNG QUẢN LÝ KHẢO SÁT & DỰ TOÁN MƯƠNG THOÁT NƯỚC <span class="badge text-bg-primary">V39</span></h2><div class="small opacity-75">Số hóa hiện trường • Khối lượng • Dự toán • Báo cáo</div></div>
+   <div><h2 class="fw-bold mb-1">HỆ THỐNG QUẢN LÝ KHẢO SÁT & DỰ TOÁN MƯƠNG THOÁT NƯỚC <span class="badge text-bg-primary">V40</span></h2><div class="small opacity-75">Số hóa hiện trường • Khối lượng • Dự toán • Báo cáo</div></div>
    <div class="account-panel no-print">
     <div class="account-user"><small>Đang sử dụng</small><strong id="currentUserLabel">—</strong></div>
     <button id="installPwaBtn" class="btn btn-sm btn-outline-light d-none" type="button">Cài ứng dụng</button><button class="btn btn-sm btn-outline-light" type="button" onclick="logoutAccount()">Đăng xuất</button>
@@ -78,7 +78,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
    <div class="col-lg-2 col-md-4"><label class="form-label">Đơn giá hố thu (VNĐ/hố)</label><input id="cfgPitPrice" type="number" min="0" class="form-control" value="150000"></div>
    <div class="col-lg-3 col-md-4"><label class="form-label">Tìm tuyến / quy cách</label><input id="searchText" class="form-control" placeholder="Nhập từ khóa..."></div>
    <div class="col-lg-2 col-md-4"><label class="form-label">Lọc mức độ</label><select id="filterLevel" class="form-select"><option value="">Tất cả</option><option>Bình thường</option><option>Nghiêm trọng</option><option>Rất nghiêm trọng</option></select></div>
-   <div class="col-lg-3 col-md-8 d-flex gap-2 flex-wrap"><button class="btn btn-outline-secondary flex-fill" onclick="backupJSON()">Sao lưu</button><label class="btn btn-outline-secondary flex-fill mb-0">Khôi phục<input id="restoreFile" type="file" accept="application/json" hidden></label><button class="btn btn-outline-dark" onclick="window.print()">In</button><button class="btn btn-warning flex-fill" type="button" data-bs-toggle="modal" data-bs-target="#routeModal" onclick="renderRouteTable()">Quản lý tuyến</button><button class="btn btn-outline-primary flex-fill" type="button" data-bs-toggle="modal" data-bs-target="#cloudModal"><span id="cloudDot" class="cloud-dot"></span>Cloud</button><button class="btn btn-success flex-fill" type="button" onclick="pullSharedStateNow(true)">↻ Đồng bộ số liệu chung</button></div>
+   <div class="col-lg-3 col-md-8 d-flex gap-2 flex-wrap"><button class="btn btn-outline-secondary flex-fill" onclick="backupJSON()">Sao lưu</button><label class="btn btn-outline-secondary flex-fill mb-0">Khôi phục<input id="restoreFile" type="file" accept="application/json" hidden></label><button class="btn btn-outline-dark" onclick="window.print()">In</button><button class="btn btn-warning flex-fill" type="button" data-bs-toggle="modal" data-bs-target="#routeModal" onclick="renderRouteTable()">Quản lý tuyến</button><button class="btn btn-info flex-fill" type="button" onclick="window.open('./binhdo.html','_blank')">Google Maps • Bình đồ CAD</button><button class="btn btn-outline-primary flex-fill" type="button" data-bs-toggle="modal" data-bs-target="#cloudModal"><span id="cloudDot" class="cloud-dot"></span>Cloud</button><button class="btn btn-success flex-fill" type="button" onclick="pullSharedStateNow(true)">↻ Đồng bộ số liệu chung</button></div>
   </div>
  </div>
 
@@ -109,7 +109,7 @@ thead th{position:sticky;top:0}.account-panel{width:100%;justify-content:flex-en
           <div class="col-md-6"><label class="form-label">Quy cách mương mặc định</label><input id="surveyNewRouteSpec" class="form-control" list="specOptions"></div>
           <div class="col-md-6"><label class="form-label">Ghi chú tuyến</label><input id="surveyNewRouteNote" class="form-control"></div>
           <div class="col-12 d-flex gap-2 flex-wrap">
-            <button class="btn btn-success btn-sm" type="button" onclick="saveNewRouteFromSurvey()">LƯU TUYẾN MỚI & CHỌN TUYẾN</button>
+            <button class="btn btn-info btn-sm" type="button" onclick="importBinhDoRoute()">NHẬP TỪ GOOGLE MAPS / BÌNH ĐỒ</button><button class="btn btn-success btn-sm" type="button" onclick="saveNewRouteFromSurvey()">LƯU TUYẾN MỚI & CHỌN TUYẾN</button>
             <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleSurveyNewRouteForm(false)">Hủy</button>
           </div>
           <div class="col-12"><div class="small text-muted">Tuyến mới được cập nhật vào Quản lý tuyến và dùng chung cho các máy đã được cấp quyền. Sau khi lưu, tuyến được chọn ngay để nhập số liệu khảo sát.</div></div>
@@ -927,6 +927,22 @@ function loadRoute(force=false){
  }
  clearSurveyFormDirty();
 }
+
+function importBinhDoRoute(){
+ try{
+  const raw=localStorage.getItem('V40_BINHDO_ROUTE');
+  if(!raw)return alert('Chưa có tuyến từ Bình đồ. Mở Google Maps • Bình đồ CAD, tạo tuyến rồi bấm “Chuyển tuyến sang V40”.');
+  const x=JSON.parse(raw);toggleSurveyNewRouteForm(true);
+  if($('surveyNewRouteName'))$('surveyNewRouteName').value=String(x.road||x.code||'TUYẾN GOOGLE MAPS').trim().toUpperCase();
+  if($('surveyNewRouteLength'))$('surveyNewRouteLength').value=Number(x.length||0).toFixed(2);
+  const fmt=p=>p&&Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon))?`${Number(p.lat).toFixed(7)}, ${Number(p.lon).toFixed(7)}`:'';
+  if($('surveyNewRouteStart'))$('surveyNewRouteStart').value=fmt(x.start);
+  if($('surveyNewRouteEnd'))$('surveyNewRouteEnd').value=fmt(x.end);
+  if($('surveyNewRouteNote'))$('surveyNewRouteNote').value=`Google Maps/Bình đồ CAD • Mã ${x.code||''} • ${x.province||''} ${x.ward||''}`.trim();
+  alert('Đã nạp tuyến từ Google Maps/Bình đồ. Kiểm tra thông tin rồi bấm LƯU TUYẾN MỚI & CHỌN TUYẾN để đồng bộ Cloud.');
+ }catch(e){alert('Không đọc được dữ liệu Bình đồ: '+e.message)}
+}
+
 function applyRouteDefaultSpec(){const r=routes.find(x=>String(x.id)===String($('selectRoute').value));if(!r)return alert('Vui lòng chọn tuyến đường trước.');$('spec').value=r.defaultSpec||'';if(!r.defaultSpec)alert('Tuyến này chưa có quy cách mặc định. Bạn có thể nhập trực tiếp hoặc vào Quản lý tuyến để thiết lập.');}
 
 

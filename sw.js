@@ -1,5 +1,5 @@
-const CACHE='cualo-drainage-v39-survey-form-dirty-lock';
-const APP=['/','/index.html','/firebase-config.js','/manifest.webmanifest','/icon-192.png','/icon-512.png'];
+const CACHE='cualo-drainage-v40-1-googlemaps-binhdo-cad';
+const APP=['/','/index.html','/binhdo.html','/firebase-config.js','/manifest.webmanifest','/icon-192.png','/icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r}).catch(()=>caches.match(e.request)))})
