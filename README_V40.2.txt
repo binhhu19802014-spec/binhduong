@@ -1,0 +1,1 @@
+V40.2: bỏ lời gọi Geocoding API trong bản đồ tương tác để tránh yêu cầu bật Geocoding/Maps billing riêng. Bản đồ tương tác mở theo tọa độ mặc định hoặc điểm tuyến đã lưu. Giữ click điểm tuyến/tài sản, Street View, bình đồ và DXF. Directions có thể không hoạt động nếu API định tuyến chưa được cấp; khi đó dùng Vẽ tim tuyến thủ công. Không nhúng API key.
